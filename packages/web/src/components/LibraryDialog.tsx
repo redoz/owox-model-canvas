@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, ChevronDown, X } from "lucide-react";
+import { ChevronRight, ChevronDown, X, Rocket } from "lucide-react";
 import type { ModelGraph } from "@mc/okf";
 import { TEMPLATES, type Template } from "../templates";
 import { DataMartIcon, JoinIcon, LibraryIcon } from "../lib/icons";
@@ -18,13 +18,13 @@ export function LibraryDialog({ onUse, onClose }: Props) {
         className="w-[620px] max-h-[82vh] overflow-hidden flex flex-col rounded-2xl border border-[#d8dee8] bg-white shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 px-5 py-4 border-b border-[#d8dee8]">
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-[#d8dee8] flex-shrink-0">
           <LibraryIcon size={18} className="text-indigo-600" />
           <h2 className="text-[15px] font-semibold flex-1">Template library</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={18} /></button>
         </div>
 
-        <div className="overflow-y-auto p-3 flex flex-col gap-2">
+        <div className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-2">
           {TEMPLATES.map(t => (
             <TemplateRow
               key={t.id}
@@ -44,14 +44,21 @@ function TemplateRow({ template, open, onToggle, onUse }: { template: Template; 
   const { nodes, edges } = template.graph;
   return (
     <div className="rounded-xl border border-[#e2e6ec] overflow-hidden">
-      <button onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#f8fafc] text-left">
+      <div onClick={onToggle} role="button" className="flex items-center gap-3 px-4 py-3 hover:bg-[#f8fafc] text-left cursor-pointer">
         {open ? <ChevronDown size={16} className="text-slate-400" /> : <ChevronRight size={16} className="text-slate-400" />}
         <div className="flex-1">
           <div className="text-[14px] font-semibold">{template.name}</div>
           <div className="text-[12px] text-slate-500">{template.description}</div>
         </div>
         <span className="text-[11px] text-slate-500 whitespace-nowrap">{nodes.length} marts · {edges.length} links</span>
-      </button>
+        <button
+          onClick={e => { e.stopPropagation(); onUse(); }}
+          title="Roll out this model onto the canvas"
+          className="flex items-center gap-[6px] rounded-lg bg-[#4f46e5] px-3 py-[6px] text-[12px] font-semibold text-white hover:bg-[#4338ca] whitespace-nowrap"
+        >
+          <Rocket size={13} /> Use
+        </button>
+      </div>
 
       {open && (
         <div className="px-4 pb-4 pt-1 bg-[#fbfcfe] border-t border-[#eef1f5]">
@@ -79,13 +86,6 @@ function TemplateRow({ template, open, onToggle, onUse }: { template: Template; 
               </ul>
             </div>
           )}
-
-          <button
-            onClick={onUse}
-            className="mt-4 rounded-lg bg-[#4f46e5] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#4338ca]"
-          >
-            Use this template
-          </button>
         </div>
       )}
     </div>
