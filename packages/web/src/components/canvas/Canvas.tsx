@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useMemo, useSyncExternalStore, useState } from "react";
+import { useCallback, useEffect, useSyncExternalStore, useState } from "react";
 import type { FC } from "react";
 import {
   ReactFlow as ReactFlowBase,
   Background,
   BackgroundVariant,
   Controls,
+  ConnectionMode,
+  useNodesState,
+  useEdgesState,
   type Node,
   type Edge,
   type NodeChange,
-  type EdgeChange,
   type Connection,
   type ReactFlowProps,
   useReactFlow,
@@ -112,25 +114,24 @@ function CanvasInner() {
   const handleStorageChange = useCallback((id: string) => { store.set({ ...store.get(), storageId: id }); }, []);
   const { me } = useAuth();
 
-  // Convert model → RF nodes/edges
-  const rfNodes = useMemo(() => graph.nodes.map(toRFNode), [graph.nodes]);
-  const rfEdges = useMemo(() => graph.edges.map(toRFEdge), [graph.edges]);
+  // React Flow owns the live node/edge arrays so dragging follows the cursor
+  // smoothly (RF applies position changes frame-by-frame). The model store stays
+  // the source of truth: we sync store → RF on structural/data changes, and write
+  // positions back to the store only at drag end.
+  const [rfNodes, setRfNodes, onRfNodesChange] = useNodesState<Node>([]);
+  const [rfEdges, setRfEdges, onRfEdgesChange] = useEdgesState<Edge>([]);
 
-  // ── Node changes (drag / select / remove) ──────────────────────────────────
+  useEffect(() => { setRfNodes(graph.nodes.map(toRFNode)); }, [graph.nodes, setRfNodes]);
+  useEffect(() => { setRfEdges(graph.edges.map(toRFEdge)); }, [graph.edges, setRfEdges]);
+
   const onNodesChange = useCallback((changes: NodeChange[]) => {
-    // Persist position only at drag end (dragging === false) to avoid a store
-    // write — and a re-render + global-listener churn — on every drag-move tick.
-    changes.forEach(change => {
-      if (change.type === "position" && change.position && !change.dragging) {
-        store.updateNode(change.id, { position: change.position });
+    onRfNodesChange(changes);                       // animate the drag live
+    for (const c of changes) {
+      if (c.type === "position" && c.position && c.dragging === false) {
+        store.updateNode(c.id, { position: c.position }); // persist final position
       }
-    });
-  }, []);
-
-  // ── Edge changes (no-op; store is source of truth) ────────────────────────
-  const onEdgesChange = useCallback((_changes: EdgeChange[]) => {
-    // intentionally empty
-  }, []);
+    }
+  }, [onRfNodesChange]);
 
   // ── Connect handler ────────────────────────────────────────────────────────
   const onConnect = useCallback((connection: Connection) => {
@@ -285,11 +286,12 @@ function CanvasInner() {
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
+            onEdgesChange={onRfEdgesChange}
             onConnect={onConnect}
             onPaneClick={onPaneClick}
             onNodeClick={onNodeClick}
             onEdgeClick={onEdgeClick}
+            connectionMode={ConnectionMode.Loose}
             fitView={false}
             minZoom={0.4}
             maxZoom={1.6}
