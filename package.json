@@ -5,10 +5,17 @@
     "dev": "pnpm --filter @mc/server dev",
     "dev:web": "pnpm --filter @mc/web dev",
     "build": "pnpm --filter @mc/okf build && pnpm --filter @mc/web build && pnpm --filter @mc/server build",
+    "restart": "lsof -ti:3111 | xargs kill -9 2>/dev/null; pnpm build && PORT=3111 pnpm --filter @mc/server start",
     "test": "pnpm -r test"
   },
-  "devDependencies": { "typescript": "^5.6.0", "vitest": "^2.1.0" },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
-  }
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "packageManager": "pnpm@10.12.4+sha512.5ea8b0deed94ed68691c9bad4c955492705c5eeb8a87ef86bc62c74a26b037b08ff9570f108b2e4dbd1dd1a9186fea925e527f141c648e85af45631074680184"
 }
