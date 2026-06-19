@@ -242,14 +242,15 @@ function CanvasInner() {
     setPushResult(null);
     setPushing(true);
     try {
-      const result = await pushModel(store);
+      const storageType = storages.find(s => s.id === store.get().storageId)?.type;
+      const result = await pushModel(store, undefined, storageType);
       setPushResult(result);
     } catch (e) {
       setPushResult({ created: 0, updated: 0, failed: 0, relationshipsCreated: 0, relationshipsFailed: 0, errors: [(e as Error).message] });
     } finally {
       setPushing(false);
     }
-  }, []);
+  }, [storages]);
 
   // ── Pending count for TopBar ───────────────────────────────────────────────
   const pendingCount = graph.nodes.filter(n => n.status === "pending").length;

@@ -8,7 +8,7 @@ export async function dataMartRoutes(app: FastifyInstance) {
     const s = need(req, reply); if (!s) return; const c = clientFor(s); const { id, field } = req.params; const b = req.body as any;
     if (field === "title") return c.updateTitle(id, b.title);
     if (field === "description") return c.updateDescription(id, b.description);
-    if (field === "schema") return c.updateSchema(id, b.fields);
+    if (field === "schema") return c.updateSchema(id, b);
     return reply.code(404).send({ error: "unknown field" });
   });
   app.post<{ Params: { id: string } }>("/api/data-marts/:id/relationships", async (req, reply) => { const s = need(req, reply); if (!s) return; return clientFor(s).createRelationship(req.params.id, req.body as any); });

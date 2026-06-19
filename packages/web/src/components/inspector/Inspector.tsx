@@ -158,6 +158,11 @@ export function Inspector({
             fromNode={nodes.find(n => n.key === selectedEdge.from)}
             toNode={nodes.find(n => n.key === selectedEdge.to)}
             onUpdate={patch => onUpdateEdge(selectedEdge.id, patch)}
+            onEnsureField={(nodeKey, fieldName) => {
+              const node = nodes.find(n => n.key === nodeKey);
+              if (!node || !fieldName || node.schema.some(f => f.name === fieldName)) return;
+              onUpdateNode(nodeKey, { schema: [...node.schema, { name: fieldName, type: "STRING", pk: false }] });
+            }}
           />
         ) : (
           <EmptyState />

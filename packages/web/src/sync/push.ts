@@ -13,7 +13,14 @@ export interface PushResult {
   errors: string[];
 }
 
-export async function pushModel(store: ModelStore, api: Api = defaultApi): Promise<PushResult> {
+// OWOX validates the output schema with a storage-specific discriminator, e.g.
+// GOOGLE_BIGQUERY → "bigquery-data-mart-schema", SNOWFLAKE → "snowflake-data-mart-schema".
+function schemaDiscriminator(storageType: string): string {
+  const base = storageType.replace(/^GOOGLE_/, "").replace(/^AWS_/, "").toLowerCase();
+  return `${base}-data-mart-schema`;
+}
+
+export async function pushModel(store: ModelStore, api: Api = defaultApi, storageType?: string): Promise<PushResult> {
   const res: PushResult = { created: 0, updated: 0, failed: 0, relationshipsCreated: 0, relationshipsFailed: 0, errors: [] };
 
   const storageId = store.get().storageId;
@@ -25,22 +32,49 @@ export async function pushModel(store: ModelStore, api: Api = defaultApi): Promi
     return res;
   }
 
-  // ── 1. Create pending marts ────────────────────────────────────────────────
+  // ── 0. Ensure every join-key field exists in its mart's output schema ───────
+  // Joining on a field that isn't defined is meaningless, so auto-add missing
+  // ones (default STRING) before we push schemas.
+  for (const e of store.get().edges) {
+    for (const k of e.keys) {
+      if (k.left) ensureField(store, e.from, k.left);
+      if (k.right) ensureField(store, e.to, k.right);
+    }
+  }
+
+  // ── 1. Create pending marts, then push their output schema ──────────────────
   for (const n of store.get().nodes) {
     if (n.status === "created") continue;
     store.updateNode(n.key, { status: "creating", error: null });
     try {
       // Create a draft with just { title, storageId } — confirmed to always 201.
-      // Output schema is storage-type-specific (BigQuery/Snowflake have different
-      // validated shapes), so it's left for ODM / a future schema-push step; the
-      // fields still travel with the model via OKF export.
       const out = await api<{ id: string }>("/api/data-marts", {
         method: "POST",
         body: JSON.stringify({ title: n.title, storageId }),
       });
-      // Best-effort: push the description if set (never fails the node).
       if (n.description) {
         await api(`/api/data-marts/${out.id}/description`, { method: "PUT", body: JSON.stringify({ description: n.description }) }).catch(() => {});
+      }
+      // Push the output schema (fields + types + PK). Best-effort: a schema error
+      // doesn't fail the mart itself, but it's surfaced in the result.
+      const fields = n.schema.filter(f => f.name.trim());
+      if (fields.length && storageType) {
+        try {
+          await api(`/api/data-marts/${out.id}/schema`, {
+            method: "PUT",
+            body: JSON.stringify({
+              schema: {
+                type: schemaDiscriminator(storageType),
+                fields: fields.map(f => ({
+                  name: f.name, type: f.type, mode: "NULLABLE",
+                  status: "CONNECTED", description: "", isPrimaryKey: f.pk,
+                })),
+              },
+            }),
+          });
+        } catch (e) {
+          res.errors.push(`Schema for "${n.title}": ${(e as Error).message}`);
+        }
       }
       store.updateNode(n.key, { status: "created", owoxId: out.id, createdAt: new Date().toISOString() });
       res.created++;
@@ -53,8 +87,6 @@ export async function pushModel(store: ModelStore, api: Api = defaultApi): Promi
   }
 
   // ── 2. Create joinable relationships (depends on both marts existing) ───────
-  // Contract (confirmed live): POST /api/data-marts/{sourceId}/relationships
-  //   { targetDataMartId, targetAlias, joinConditions:[{sourceFieldName,targetFieldName}] }
   const g = store.get();
   const owoxIdByKey = new Map(g.nodes.map(n => [n.key, n.owoxId]));
   const titleByKey = new Map(g.nodes.map(n => [n.key, n.title]));
@@ -68,7 +100,6 @@ export async function pushModel(store: ModelStore, api: Api = defaultApi): Promi
     for (const [fromKey, toKey, ks] of directions) {
       const fromId = owoxIdByKey.get(fromKey);
       const toId = owoxIdByKey.get(toKey);
-      // Skip until both ends exist in OWOX and at least one complete join key is set.
       if (!fromId || !toId || ks.length === 0) {
         res.relationshipsFailed++;
         const why = ks.length === 0 ? "join keys are empty" : "both marts must be created first";
@@ -93,4 +124,12 @@ export async function pushModel(store: ModelStore, api: Api = defaultApi): Promi
   }
 
   return res;
+}
+
+// Add a field to a node's output schema if it isn't there yet (default STRING).
+function ensureField(store: ModelStore, nodeKey: string, fieldName: string) {
+  const node = store.get().nodes.find(n => n.key === nodeKey);
+  if (!node) return;
+  if (node.schema.some(f => f.name === fieldName)) return;
+  store.updateNode(nodeKey, { schema: [...node.schema, { name: fieldName, type: "STRING", pk: false }] });
 }

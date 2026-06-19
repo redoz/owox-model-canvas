@@ -1,6 +1,8 @@
 import type { SchemaField } from "@mc/okf";
 
-const FIELD_TYPES = ["STRING", "INTEGER", "FLOAT", "NUMERIC", "BOOLEAN", "DATE", "DATETIME", "TIMESTAMP"];
+// Canonical OWOX schema types — the set accepted across storages (BigQuery,
+// Snowflake, …). Note: no DATETIME (not in the cross-storage enum).
+const FIELD_TYPES = ["STRING", "INTEGER", "FLOAT", "NUMERIC", "BOOLEAN", "DATE", "TIME", "TIMESTAMP", "BYTES", "GEOGRAPHY", "VARIANT"];
 
 interface SchemaEditorProps {
   schema: SchemaField[];
