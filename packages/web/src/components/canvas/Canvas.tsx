@@ -264,18 +264,24 @@ function CanvasInner() {
     downloadBundle(files, title);
   }, [me]);
 
+  // Auto-layout a freshly loaded graph (import or template). The OKF format does
+  // not persist node positions (Dagre re-lays out on load, by design), so without
+  // this every imported node piles up at the origin and must be dragged apart.
+  const withLayout = useCallback((g: ModelGraph): ModelGraph => {
+    const positions = runDagreLayout(g.nodes, g.edges, viewMode);
+    return { ...g, nodes: g.nodes.map(n => ({ ...n, position: positions.get(n.key) ?? n.position })) };
+  }, [viewMode]);
+
   const handleImportConfirm = useCallback((g: ModelGraph) => {
-    store.set(g);
+    store.set(withLayout(g));
     setShowImport(false);
-  }, []);
+  }, [withLayout]);
 
   const handleUseTemplate = useCallback((g: ModelGraph) => {
     // Keep the model on the currently selected storage; auto-layout the template.
-    const positions = runDagreLayout(g.nodes, g.edges, viewMode);
-    const nodes = g.nodes.map(n => ({ ...n, position: positions.get(n.key) ?? n.position }));
-    store.set({ ...g, storageId: store.get().storageId, nodes });
+    store.set({ ...withLayout(g), storageId: store.get().storageId });
     setShowLibrary(false);
-  }, [viewMode]);
+  }, [withLayout]);
 
   const runPush = useCallback(async (storagesList: StorageOption[] = storages) => {
     setPushResult(null);
