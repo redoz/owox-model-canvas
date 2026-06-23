@@ -48,6 +48,8 @@ import { RelEdge } from "./RelEdge";
 import { buildRfEdges, isEdgeReconnectable } from "./edges";
 import { erdAwareNodeSize } from "./layoutSize";
 import { Inspector } from "../inspector/Inspector";
+import { GoalDialog } from "../GoalDialog";
+import { loadGoal, persistGoal, type BusinessGoal } from "../../state/goal";
 
 // Cast to FC to avoid generic component JSX typing issues with @types/react 18.3
 const ReactFlow = ReactFlowBase as unknown as FC<ReactFlowProps>;
@@ -101,6 +103,8 @@ function CanvasInner() {
   const { screenToFlowPosition } = useReactFlow();
 
   const [selection, setSelection] = useState<Selection>(null);
+  const [goal, setGoalState] = useState<BusinessGoal | null>(loadGoal());
+  const [showGoal, setShowGoal] = useState(false);
   const [tool, setTool] = useState<Tool>("select");
   const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode());
   const [showImport, setShowImport] = useState(false);
@@ -392,6 +396,8 @@ function CanvasInner() {
         onExport={handleExport}
         onPush={handlePush}
         onLibrary={() => setShowLibrary(true)}
+        onOpenGoal={() => setShowGoal(true)}
+        goalSet={!!goal}
         signedIn={!!me}
         projectTitle={me?.projectTitle}
         onSignIn={() => setSignIn({ mode: "connect" })}
@@ -432,6 +438,14 @@ function CanvasInner() {
         <LibraryDialog
           onUse={handleUseTemplate}
           onClose={() => setShowLibrary(false)}
+        />
+      )}
+      {showGoal && (
+        <GoalDialog
+          current={goal}
+          onConfirm={g => { setGoalState(g); persistGoal(g); setShowGoal(false); }}
+          onClear={() => { setGoalState(null); persistGoal(null); setShowGoal(false); }}
+          onClose={() => setShowGoal(false)}
         />
       )}
       {signIn && (
@@ -515,6 +529,7 @@ function CanvasInner() {
           onUpdateNode={store.updateNode}
           onUpdateEdge={store.updateEdge}
           onClose={() => setSelection(null)}
+          goal={goal}
         />
       </div>
     </div>
