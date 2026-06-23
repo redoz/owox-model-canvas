@@ -25,4 +25,12 @@ describe("GoalDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: /apply/i }));
     expect(onConfirm).toHaveBeenCalledWith({ niche: "SaaS / Subscription", goal: "Grow seats per account" });
   });
+
+  it("resets the goal when the niche changes", () => {
+    render(<GoalDialog current={null} onConfirm={() => {}} onClear={() => {}} onClose={() => {}} />);
+    fireEvent.click(screen.getByText("E-commerce / Retail"));
+    fireEvent.click(screen.getByText("Increase ROAS while holding CPC"));
+    fireEvent.click(screen.getByText("SaaS / Subscription")); // change niche
+    expect((screen.getByPlaceholderText(/your own goal/i) as HTMLInputElement).value).toBe("");
+  });
 });
