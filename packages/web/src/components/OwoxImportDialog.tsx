@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import type { ModelGraph } from "@mc/okf";
 import { api } from "../lib/api";
 import type { StorageOption } from "./TopBar";
-import { payloadToGraph, selectMartIds, type ImportPayload, type ImportFilter } from "../sync/owoxImport";
+import { payloadToGraph, type ImportPayload, type ImportFilter } from "../sync/owoxImport";
 
 interface Props {
   storages: StorageOption[];
