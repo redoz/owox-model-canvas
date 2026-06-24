@@ -38,6 +38,7 @@ import { ImportDialog } from "../ImportDialog";
 import { OwoxImportDialog } from "../OwoxImportDialog";
 import { mergeGraphs } from "../../sync/owoxImport";
 import { LibraryDialog } from "../LibraryDialog";
+import { TemplateApplyDialog } from "../TemplateApplyDialog";
 import { SignInModal } from "../SignInModal";
 import { PushConfirmDialog } from "../PushConfirmDialog";
 import { pushIntent } from "../../sync/pushGate";
@@ -118,6 +119,9 @@ function CanvasInner() {
   const [showImport, setShowImport] = useState(false);
   const [showOwoxImport, setShowOwoxImport] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
+  // A template chosen from the library while the canvas already had content —
+  // held until the user confirms Replace vs Merge in the TemplateApplyDialog.
+  const [pendingTemplate, setPendingTemplate] = useState<{ graph: ModelGraph; name: string } | null>(null);
   const [pushing, setPushing] = useState(false);
   const [pushResult, setPushResult] = useState<PushResult | null>(null);
   const [storages, setStorages] = useState<StorageOption[]>([]);
@@ -336,11 +340,29 @@ function CanvasInner() {
     setShowOwoxImport(false);
   }, [withLayout, applyMergeWithLayout]);
 
-  const handleUseTemplate = useCallback((g: ModelGraph) => {
+  const applyTemplate = useCallback((g: ModelGraph, mode: "replace" | "merge") => {
     // Keep the model on the currently selected storage; auto-layout the template.
-    store.set({ ...withLayout(g), storageId: store.get().storageId });
+    if (mode === "merge") applyMergeWithLayout(g);
+    else store.set({ ...withLayout(g), storageId: store.get().storageId });
+  }, [withLayout, applyMergeWithLayout]);
+
+  const handleUseTemplate = useCallback((g: ModelGraph, name: string) => {
+    // Empty canvas → drop the template straight in. Non-empty → ask Replace vs
+    // Merge first (mirrors the OKF/OWOX import dialogs) so existing work isn't
+    // silently wiped.
+    if (store.get().nodes.length === 0) {
+      applyTemplate(g, "replace");
+      setShowLibrary(false);
+    } else {
+      setPendingTemplate({ graph: g, name });
+    }
+  }, [applyTemplate]);
+
+  const handleTemplateApplyConfirm = useCallback((mode: "replace" | "merge") => {
+    if (pendingTemplate) applyTemplate(pendingTemplate.graph, mode);
+    setPendingTemplate(null);
     setShowLibrary(false);
-  }, [withLayout]);
+  }, [pendingTemplate, applyTemplate]);
 
   const runPush = useCallback(async (storagesList: StorageOption[] = storages) => {
     setPushResult(null);
@@ -447,6 +469,14 @@ function CanvasInner() {
         <LibraryDialog
           onUse={handleUseTemplate}
           onClose={() => setShowLibrary(false)}
+        />
+      )}
+      {pendingTemplate && (
+        <TemplateApplyDialog
+          graph={pendingTemplate.graph}
+          name={pendingTemplate.name}
+          onConfirm={handleTemplateApplyConfirm}
+          onClose={() => setPendingTemplate(null)}
         />
       )}
       {showGoal && (

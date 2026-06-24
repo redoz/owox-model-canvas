@@ -5,7 +5,7 @@ import { TEMPLATES, type Template } from "../templates";
 import { DataMartIcon, JoinIcon, LibraryIcon } from "../lib/icons";
 
 interface Props {
-  onUse: (graph: ModelGraph) => void;
+  onUse: (graph: ModelGraph, name: string) => void;
   onClose: () => void;
 }
 
@@ -31,7 +31,7 @@ export function LibraryDialog({ onUse, onClose }: Props) {
               template={t}
               open={openId === t.id}
               onToggle={() => setOpenId(openId === t.id ? null : t.id)}
-              onUse={() => onUse(structuredClone(t.graph))}
+              onUse={() => onUse(structuredClone(t.graph), t.name)}
             />
           ))}
         </div>
@@ -45,12 +45,12 @@ function TemplateRow({ template, open, onToggle, onUse }: { template: Template; 
   return (
     <div className="rounded-xl border border-[#e2e6ec] overflow-hidden">
       <div onClick={onToggle} role="button" className="flex items-center gap-3 px-4 py-3 hover:bg-[#f8fafc] text-left cursor-pointer">
-        {open ? <ChevronDown size={16} className="text-slate-400" /> : <ChevronRight size={16} className="text-slate-400" />}
-        <div className="flex-1">
-          <div className="text-[14px] font-semibold">{template.name}</div>
-          <div className="text-[12px] text-slate-500">{template.description}</div>
+        {open ? <ChevronDown size={16} className="text-slate-400 flex-shrink-0" /> : <ChevronRight size={16} className="text-slate-400 flex-shrink-0" />}
+        <div className="flex-1 min-w-0">
+          <div className="text-[14px] font-semibold truncate">{template.name}</div>
+          <div className="text-[12px] text-slate-500 truncate">{template.description}</div>
         </div>
-        <span className="text-[11px] text-slate-500 whitespace-nowrap">{nodes.length} marts · {edges.length} links</span>
+        <span className="text-[11px] text-slate-500 whitespace-nowrap flex-shrink-0">{nodes.length} marts · {edges.length} links</span>
         <button
           onClick={e => { e.stopPropagation(); onUse(); }}
           title="Roll out this model onto the canvas"
