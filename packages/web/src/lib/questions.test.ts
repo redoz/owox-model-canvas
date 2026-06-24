@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ModelNode, ModelEdge } from "@mc/okf";
-import { buildFocus, focusCacheKey, getQuestions, __clearCache } from "./questions";
+import { buildFocus, focusCacheKey, getQuestions, AiLimitError, __clearCache } from "./questions";
 
 const mart = (key: string, title: string): ModelNode => ({
   key, title, inputSource: "SQL", schema: [{ name: "id", type: "INTEGER", pk: true }],
@@ -57,5 +57,14 @@ describe("getQuestions", () => {
     await getQuestions(f, GOAL);
     await getQuestions(f, GOAL, { force: true });
     expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws AiLimitError when the API responds 429", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(new Response(
+      JSON.stringify({ error: "ai_limit" }),
+      { status: 429, headers: { "Content-Type": "application/json" } },
+    ));
+    const f = buildFocus(NODES, EDGES, "a");
+    await expect(getQuestions(f, GOAL)).rejects.toBeInstanceOf(AiLimitError);
   });
 });

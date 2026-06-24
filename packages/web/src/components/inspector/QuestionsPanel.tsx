@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import type { ModelNode, ModelEdge } from "@mc/okf";
 import type { BusinessGoal } from "../../state/goal";
-import { buildFocus, getQuestions, type InsightQuestion } from "../../lib/questions";
+import { buildFocus, getQuestions, AiLimitError, type InsightQuestion } from "../../lib/questions";
 
 interface QuestionsPanelProps {
   node: ModelNode;
@@ -14,6 +14,7 @@ type State =
   | { kind: "loading" }
   | { kind: "ready"; questions: InsightQuestion[] }
   | { kind: "empty" }
+  | { kind: "limit" }
   | { kind: "error" };
 
 export function QuestionsPanel({ node, nodes, edges, goal }: QuestionsPanelProps) {
@@ -29,8 +30,8 @@ export function QuestionsPanel({ node, nodes, edges, goal }: QuestionsPanelProps
       const focus = buildFocus(nodes, edges, node.key);
       const questions = await getQuestions(focus, goal, { force });
       setState({ kind: "ready", questions });
-    } catch {
-      setState({ kind: "error" });
+    } catch (e) {
+      setState({ kind: e instanceof AiLimitError ? "limit" : "error" });
     }
   }, [node.key, node.schema.length, node.description, nodes, edges, goal]);
 
@@ -53,6 +54,9 @@ export function QuestionsPanel({ node, nodes, edges, goal }: QuestionsPanelProps
       )}
       {state.kind === "empty" && (
         <div className="text-[12px] text-slate-400 italic">Add fields or a description to this mart to unlock questions.</div>
+      )}
+      {state.kind === "limit" && (
+        <div className="text-[12px] text-slate-500">Ooops! The free AI API limit has been reached for today. Try again later.</div>
       )}
       {state.kind === "error" && (
         <div className="text-[12px] text-slate-500">Couldn't generate questions — try Regenerate.</div>

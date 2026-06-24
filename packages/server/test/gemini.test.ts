@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { buildPrompt, generateQuestions } from "../src/llm/gemini";
+import { buildPrompt, generateQuestions, GeminiRateLimitError } from "../src/llm/gemini";
 
 const INPUT = {
   niche: "E-commerce / Retail",
@@ -50,9 +50,15 @@ describe("generateQuestions", () => {
     await expect(generateQuestions(INPUT)).rejects.toThrow();
   });
 
-  it("throws on a non-OK upstream status", async () => {
+  it("throws GeminiRateLimitError on a 429 (quota / spend cap)", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     vi.spyOn(global, "fetch").mockResolvedValue(new Response("quota", { status: 429 }));
-    await expect(generateQuestions(INPUT)).rejects.toThrow(/Gemini/);
+    await expect(generateQuestions(INPUT)).rejects.toBeInstanceOf(GeminiRateLimitError);
+  });
+
+  it("throws a generic error on a non-429 non-OK status", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    vi.spyOn(global, "fetch").mockResolvedValue(new Response("boom", { status: 500 }));
+    await expect(generateQuestions(INPUT)).rejects.toThrow(/Gemini request failed: 500/);
   });
 });

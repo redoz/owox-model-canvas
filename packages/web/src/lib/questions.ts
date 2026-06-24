@@ -7,6 +7,16 @@ export interface InsightQuestion {
   unlockedBy: string;
 }
 
+// Thrown when /api/questions returns 429 — either the server's own per-route
+// rate limit or Gemini's daily quota / spend cap. The panel shows a friendly
+// "limit reached" message for this, distinct from a generic failure.
+export class AiLimitError extends Error {
+  constructor() {
+    super("ai_limit");
+    this.name = "AiLimitError";
+  }
+}
+
 export interface FocusMart {
   title: string;
   description?: string;
@@ -81,10 +91,16 @@ export async function getQuestions(
     const hit = cache.get(cacheKey);
     if (hit) return hit;
   }
-  const res = await api<{ questions: InsightQuestion[] }>("/api/questions", {
-    method: "POST",
-    body: JSON.stringify({ niche: goal.niche, goal: goal.goal, focus }),
-  });
+  let res: { questions: InsightQuestion[] };
+  try {
+    res = await api<{ questions: InsightQuestion[] }>("/api/questions", {
+      method: "POST",
+      body: JSON.stringify({ niche: goal.niche, goal: goal.goal, focus }),
+    });
+  } catch (err) {
+    if ((err as { status?: number }).status === 429) throw new AiLimitError();
+    throw err;
+  }
   cache.set(cacheKey, res.questions);
   return res.questions;
 }

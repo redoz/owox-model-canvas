@@ -58,6 +58,17 @@ export function buildPrompt(input: GenerateInput): string {
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
+// Thrown when Gemini returns 429 (free-tier daily quota or the billing spend cap
+// is exhausted). The route maps this to a 429 the client shows as a friendly
+// "limit reached" message rather than a generic failure.
+export class GeminiRateLimitError extends Error {
+  readonly rateLimited = true;
+  constructor() {
+    super("Gemini rate limit or spend cap reached");
+    this.name = "GeminiRateLimitError";
+  }
+}
+
 export async function generateQuestions(input: GenerateInput): Promise<InsightQuestion[]> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY is not configured");
@@ -71,6 +82,7 @@ export async function generateQuestions(input: GenerateInput): Promise<InsightQu
       generationConfig: { responseMimeType: "application/json", temperature: 0.7 },
     }),
   });
+  if (res.status === 429) throw new GeminiRateLimitError();
   if (!res.ok) throw new Error(`Gemini request failed: ${res.status}`);
 
   const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };

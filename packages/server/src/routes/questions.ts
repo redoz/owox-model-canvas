@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { generateQuestions, type GenerateInput } from "../llm/gemini";
+import { generateQuestions, GeminiRateLimitError, type GenerateInput } from "../llm/gemini";
 
 interface Body {
   niche?: unknown;
@@ -31,8 +31,15 @@ export async function questionsRoutes(app: FastifyInstance) {
     async (req, reply) => {
       const input = validate(req.body as Body);
       if (!input) return reply.code(400).send({ error: "niche, goal and a non-empty focus.marts are required" });
-      const questions = await generateQuestions(input);
-      return { questions };
+      try {
+        const questions = await generateQuestions(input);
+        return { questions };
+      } catch (err) {
+        // Quota / spend-cap exhaustion → 429 "ai_limit" so the client can show a
+        // friendly "limit reached" message; everything else stays a 502 failure.
+        if (err instanceof GeminiRateLimitError) return reply.code(429).send({ error: "ai_limit" });
+        throw err;
+      }
     },
   );
 }

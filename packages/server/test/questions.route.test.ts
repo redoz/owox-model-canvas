@@ -35,10 +35,18 @@ describe("POST /api/questions", () => {
     expect(res.json().questions).toHaveLength(5);
   });
 
-  it("surfaces a generator failure as a 502-class error", async () => {
-    vi.spyOn(gemini, "generateQuestions").mockRejectedValue(new Error("Gemini request failed: 429"));
+  it("surfaces a generic generator failure as a 502-class error", async () => {
+    vi.spyOn(gemini, "generateQuestions").mockRejectedValue(new Error("Gemini returned no content"));
     const app = buildApp();
     const res = await app.inject({ method: "POST", url: "/api/questions", payload: BODY });
     expect(res.statusCode).toBeGreaterThanOrEqual(500);
+  });
+
+  it("maps a Gemini quota/spend-cap hit to 429 { error: ai_limit }", async () => {
+    vi.spyOn(gemini, "generateQuestions").mockRejectedValue(new gemini.GeminiRateLimitError());
+    const app = buildApp();
+    const res = await app.inject({ method: "POST", url: "/api/questions", payload: BODY });
+    expect(res.statusCode).toBe(429);
+    expect(res.json()).toEqual({ error: "ai_limit" });
   });
 });

@@ -29,6 +29,12 @@ describe("QuestionsPanel", () => {
     expect(await screen.findByText(/couldn't generate/i)).toBeTruthy();
   });
 
+  it("shows the friendly limit message when the AI quota is hit", async () => {
+    vi.spyOn(qlib, "getQuestions").mockRejectedValue(new qlib.AiLimitError());
+    render(<QuestionsPanel node={node} nodes={[node]} edges={[]} goal={GOAL} />);
+    expect(await screen.findByText(/free AI API limit has been reached/i)).toBeTruthy();
+  });
+
   it("re-fetches with force when Regenerate is clicked", async () => {
     const spy = vi.spyOn(qlib, "getQuestions").mockResolvedValue([{ question: "Q", unlockedBy: "U" }]);
     render(<QuestionsPanel node={node} nodes={[node]} edges={[]} goal={GOAL} />);
