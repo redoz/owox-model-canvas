@@ -57,6 +57,45 @@ export function parseBundle(files: Record<string, string>): ModelGraph {
       raw.push({ from: fromKey, to: toKey, keys, cardinality });
     }
   }
+
+  // Tolerant pass for Google OKF v0.1 prose joins, e.g.
+  //   "...can be joined with the [users](users.md) table on `user_id`..."
+  // Conservative: only lines that mention "join" AND link to a known mart, and
+  // never list-item lines (those are the strict parser's job). An `on `key``
+  // binds to the most recent preceding link; links without a key become keyless
+  // edges. A discovered key upgrades an existing keyless edge for the same pair.
+  const addProseEdge = (from: string, to: string, key: string | undefined) => {
+    const keys = key ? [{ left: key, right: pkByKey.get(to) ?? key }] : [];
+    const ex = raw.find(r => (r.from === from && r.to === to) || (r.from === to && r.to === from));
+    if (ex) {
+      if (keys.length && ex.keys.length === 0) {
+        ex.keys = ex.from === from ? keys : keys.map(k => ({ left: k.right, right: k.left }));
+      }
+      return;
+    }
+    raw.push({ from, to, keys });
+  };
+  for (const [path, text] of docs) {
+    const { data, body } = parseFrontmatter(text);
+    const fromKey = (data.owox && data.owox.key) || basename(path);
+    for (const ln of body.split("\n")) {
+      if (!/join/i.test(ln)) continue;
+      if (/^[-*]\s+\[/.test(ln.trim())) continue;      // strict-parser list items
+      let pending: string | null = null;
+      for (const tk of ln.matchAll(/\[[^\]]+\]\(([^)]+\.md)\)|on\s+`([^`]+)`/gi)) {
+        if (tk[1]) {
+          if (pending) addProseEdge(fromKey, pending, undefined);
+          const toKey = slugToKey.get(basename(tk[1]));
+          pending = toKey && toKey !== fromKey ? toKey : null;
+        } else if (tk[2] && pending) {
+          addProseEdge(fromKey, pending, tk[2].trim());
+          pending = null;
+        }
+      }
+      if (pending) addProseEdge(fromKey, pending, undefined);
+    }
+  }
+
   const edges: ModelEdge[] = []; const seen = new Map<string, ModelEdge>();
   for (const r of raw) {
     const pairKey = [r.from, r.to].sort().join("|");

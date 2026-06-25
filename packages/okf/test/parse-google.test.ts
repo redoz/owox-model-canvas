@@ -75,3 +75,47 @@ describe("join target path normalization", () => {
     expect(g.edges[0].keys).toEqual([{ left: "customer_id", right: "id" }]);
   });
 });
+
+describe("Google OKF v0.1 — prose joins", () => {
+  const edge = (g: ReturnType<typeof parseBundle>, a: string, b: string) =>
+    g.edges.find(e => (e.from === a && e.to === b) || (e.from === b && e.to === a));
+
+  it("recovers Bitcoin inputs→transactions with a key and inputs→outputs keyless", () => {
+    const g = parseBundle(loadBundle("crypto_bitcoin"));
+    const t = edge(g, "inputs", "transactions");
+    expect(t).toBeDefined();
+    expect(t!.keys.some(k => k.left === "transaction_hash" || k.right === "transaction_hash")).toBe(true);
+    const o = edge(g, "inputs", "outputs");
+    expect(o).toBeDefined();
+    expect(o!.keys).toEqual([]);
+  });
+
+  it("recovers Stack Overflow badges→users on user_id and answers↔questions on parent_id", () => {
+    const g = parseBundle(loadBundle("stackoverflow"));
+    const bu = edge(g, "badges", "users");
+    expect(bu).toBeDefined();
+    expect(bu!.keys.some(k => k.left === "user_id" || k.right === "user_id")).toBe(true);
+    const aq = edge(g, "posts_answers", "posts_questions");
+    expect(aq).toBeDefined();
+    expect(aq!.keys.some(k => k.left === "parent_id" || k.right === "parent_id")).toBe(true);
+  });
+
+  it("does not invent edges for GA4 (its join links point at a non-mart reference file)", () => {
+    const g = parseBundle(loadBundle("ga4"));
+    expect(g.edges).toHaveLength(0);
+  });
+});
+
+describe("Google OKF v0.1 — acceptance", () => {
+  it("imports each bundle with marts + fields + no errors", () => {
+    for (const name of ["ga4", "crypto_bitcoin", "stackoverflow"]) {
+      const g = parseBundle(loadBundle(name));
+      expect(g.nodes.length).toBeGreaterThan(0);
+      // every mart has at least one parsed field
+      expect(g.nodes.every(n => n.schema.length > 0)).toBe(true);
+      // edges only ever connect known marts
+      const keys = new Set(g.nodes.map(n => n.key));
+      expect(g.edges.every(e => keys.has(e.from) && keys.has(e.to))).toBe(true);
+    }
+  });
+});
