@@ -106,6 +106,26 @@ describe("Google OKF v0.1 — prose joins", () => {
   });
 });
 
+describe("prose pass never fires on OWOX-format docs", () => {
+  it("ignores a relative .md link in an OWOX mart description", () => {
+    const files = {
+      "orders.md": [
+        "---", 'type: "OWOX Data Mart"', "title: Orders", "---", "",
+        "# Orders", "", "This table can be joined with the [Customers](./customers.md) table.", "",
+        "## Schema", "", "| Column | Type | Description |",
+        "|--------|------|-------------|", "| `id` | STRING | PK. |", "",
+      ].join("\n"),
+      "customers.md": [
+        "---", 'type: "OWOX Data Mart"', "title: Customers", "---", "",
+        "# Customers", "", "## Schema", "", "| Column | Type | Description |",
+        "|--------|------|-------------|", "| `id` | STRING | PK. |", "",
+      ].join("\n"),
+    };
+    const g = parseBundle(files);
+    expect(g.edges).toHaveLength(0);
+  });
+});
+
 describe("Google OKF v0.1 — acceptance", () => {
   it("imports each bundle with marts + fields + no errors", () => {
     for (const name of ["ga4", "crypto_bitcoin", "stackoverflow"]) {

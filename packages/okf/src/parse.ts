@@ -3,7 +3,8 @@ import { parseFrontmatter } from "./slug";
 
 const FLIP_CARDINALITY: Record<Cardinality, Cardinality> = { "1:1": "1:1", "N:N": "N:N", "1:N": "N:1", "N:1": "1:N" };
 
-// Resolve a link target by its file slug, tolerating ./rel, /abs, and nested dirs.
+// Resolve a link target by its basename, tolerating ./rel paths, nested dirs,
+// and (in the prose pass) absolute paths. The strict join regex only produces ./rel.
 function basename(path: string): string {
   return path.split(/[\\/]/).pop()!.replace(/\.md$/i, "");
 }
@@ -77,6 +78,7 @@ export function parseBundle(files: Record<string, string>): ModelGraph {
   };
   for (const [path, text] of docs) {
     const { data, body } = parseFrontmatter(text);
+    if (typeof data.type === "string" && /^owox data mart$/i.test(data.type.trim())) continue;
     const fromKey = (data.owox && data.owox.key) || basename(path);
     for (const ln of body.split("\n")) {
       if (!/join/i.test(ln)) continue;
