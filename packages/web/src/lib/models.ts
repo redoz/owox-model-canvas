@@ -54,3 +54,36 @@ export async function deleteModel(id: string): Promise<void> {
   const { error } = await client().from("models").delete().eq("id", id);
   if (error) throw error;
 }
+
+// ── version history (#4953) ──────────────────────────────────────────────────
+
+export interface ModelVersion {
+  id: string;
+  created_at: string;
+}
+
+/** Snapshot the current graph as a new immutable version of `modelId`. */
+export async function createVersion(modelId: string, graph: ModelGraph): Promise<void> {
+  const sb = client();
+  const { data: u } = await sb.auth.getUser();
+  const userId = u.user?.id;
+  if (!userId) throw new Error("Sign in to save.");
+  const { error } = await sb.from("model_versions").insert({ model_id: modelId, user_id: userId, graph });
+  if (error) throw error;
+}
+
+export async function listVersions(modelId: string): Promise<ModelVersion[]> {
+  const { data, error } = await client()
+    .from("model_versions")
+    .select("id,created_at")
+    .eq("model_id", modelId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as ModelVersion[];
+}
+
+export async function loadVersion(id: string): Promise<ModelGraph> {
+  const { data, error } = await client().from("model_versions").select("graph").eq("id", id).single();
+  if (error) throw error;
+  return (data as { graph: ModelGraph }).graph;
+}

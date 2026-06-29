@@ -41,9 +41,10 @@ import { useAuth } from "../../lib/auth";
 import { useAccount } from "../../lib/account";
 import { supabaseEnabled } from "../../lib/supabase";
 import { isAuthRedirecting } from "../../lib/authRedirect";
-import { createModel, updateModel } from "../../lib/models";
+import { createModel, updateModel, createVersion } from "../../lib/models";
 import { AccountDialog } from "../AccountDialog";
 import { MyModelsDialog } from "../MyModelsDialog";
+import { ModelsRail } from "../ModelsRail";
 import { TopBar, type StorageOption } from "../TopBar";
 import { ImportDialog } from "../ImportDialog";
 import { OwoxImportDialog } from "../OwoxImportDialog";
@@ -222,6 +223,8 @@ function CanvasInner() {
   // The id of the saved model currently open (so Save updates it instead of
   // creating a duplicate). Reset on Clear / opening a different model.
   const [savedModelId, setSavedModelId] = useState<string | null>(null);
+  // Bumped on each save so the History rail re-fetches the version list.
+  const [versionsBump, setVersionsBump] = useState(0);
   // Editable model name (shown in the top bar, used as the Save default).
   // A shared link's name wins on first load (opening someone's named model);
   // otherwise restore the locally-persisted name.
@@ -505,12 +508,15 @@ function CanvasInner() {
     try {
       const graph = store.get();
       const name = modelName.trim() || DEFAULT_MODEL_NAME;
-      if (savedModelId) {
-        await updateModel(savedModelId, { name, graph });
+      let id = savedModelId;
+      if (id) {
+        await updateModel(id, { name, graph });
       } else {
-        const id = await createModel(name, graph);
+        id = await createModel(name, graph);
         setSavedModelId(id);
       }
+      await createVersion(id, graph); // snapshot history (#4953)
+      setVersionsBump(b => b + 1); // tell the History rail to refresh
       setShareToast("Model saved");
     } catch (e) {
       setShareToast(`Save failed: ${(e as Error).message}`);
@@ -526,6 +532,21 @@ function CanvasInner() {
     setSavedModelId(id);
     setModelName(name);
   }, []);
+
+  // Restore a past version onto the canvas. Keep it the same open model (don't
+  // touch savedModelId/name) — the next Save snapshots this restored state as a
+  // new version, so nothing is destroyed.
+  const handleRestoreVersion = useCallback((g: ModelGraph) => {
+    store.set({ ...g });
+    setShareToast("Version restored to the canvas — Save to keep it.");
+  }, []);
+
+  // "New model" from the rail: warn before discarding a non-empty canvas, else
+  // just reset to a clean slate.
+  const handleNewModel = useCallback(() => {
+    if (store.get().nodes.length > 0) setShowClear(true);
+    else clearCanvas();
+  }, [clearCanvas]);
 
   const handleUseTemplate = useCallback((g: ModelGraph, name: string) => {
     // Remember the matching niche so the Business Goal dialog can pre-pick it.
@@ -730,6 +751,20 @@ function CanvasInner() {
       )}
 
       <div className="flex flex-1 min-h-0 relative">
+        {/* Models + version-history rail (collapsed by default) */}
+        {supabaseEnabled && (
+          <ModelsRail
+            signedIn={!!account}
+            currentModelId={savedModelId}
+            versionsBump={versionsBump}
+            onOpenModel={handleOpenSaved}
+            onNew={handleNewModel}
+            onRestore={handleRestoreVersion}
+            getCurrentGraph={() => store.get()}
+            onSignIn={() => setShowAccount(true)}
+          />
+        )}
+
         {/* Left tool dock */}
         <Dock activeTool={tool} onToolChange={handleToolChange} viewMode={viewMode} onToggleView={handleToggleView} onClear={() => setShowClear(true)} clearDisabled={graph.nodes.length === 0} relLabelMode={relLabelMode} onRelLabelModeChange={handleRelLabelModeChange} />
 
