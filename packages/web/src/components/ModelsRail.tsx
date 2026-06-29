@@ -50,7 +50,7 @@ export function ModelsRail(props: ModelsRailProps) {
         {!signedIn ? (
           <SignInCTA onSignIn={onSignIn} />
         ) : section === "models" ? (
-          <ModelsSection currentModelId={currentModelId} onOpenModel={onOpenModel} onNew={onNew} />
+          <ModelsSection currentModelId={currentModelId} versionsBump={versionsBump} onOpenModel={onOpenModel} onNew={onNew} />
         ) : (
           <HistorySection currentModelId={currentModelId} versionsBump={versionsBump} onRestore={onRestore} getCurrentGraph={getCurrentGraph} />
         )}
@@ -78,13 +78,15 @@ function SignInCTA({ onSignIn }: { onSignIn: () => void }) {
   );
 }
 
-function ModelsSection({ currentModelId, onOpenModel, onNew }: { currentModelId: string | null; onOpenModel: ModelsRailProps["onOpenModel"]; onNew: () => void }) {
+function ModelsSection({ currentModelId, versionsBump, onOpenModel, onNew }: { currentModelId: string | null; versionsBump: number; onOpenModel: ModelsRailProps["onOpenModel"]; onNew: () => void }) {
   const [models, setModels] = useState<SavedModel[] | null>(null);
   const [err, setErr] = useState("");
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
 
   const refresh = () => listModels().then(setModels).catch(e => setErr((e as Error).message));
-  useEffect(() => { void refresh(); }, []);
+  // Reload on mount and after every Save (versionsBump) so a freshly-saved model
+  // shows up without reopening the rail.
+  useEffect(() => { void refresh(); }, [versionsBump]);
 
   async function openModel(m: SavedModel) {
     try { onOpenModel(await loadModel(m.id), m.id, m.name); }
