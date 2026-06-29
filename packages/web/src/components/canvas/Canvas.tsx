@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useSyncExternalStore, useState } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore, useState } from "react";
 import type { FC } from "react";
 import {
   ReactFlow as ReactFlowBase,
@@ -227,6 +227,10 @@ function CanvasInner() {
   const [savedModelId, setSavedModelId] = useState<string | null>(null);
   // Bumped on each save so the History rail re-fetches the version list.
   const [versionsBump, setVersionsBump] = useState(0);
+  // Whether the canvas has changed since the last Save / open. Lets "New model"
+  // skip its confirmation when there's nothing unsaved to lose.
+  const [dirty, setDirty] = useState(false);
+  const skipFirstDirty = useRef(true);
   // Editable model name (shown in the top bar, used as the Save default).
   // A shared link's name wins on first load (opening someone's named model);
   // otherwise restore the locally-persisted name.
@@ -292,6 +296,13 @@ function CanvasInner() {
   // Mirror the model to localStorage on every change so a refresh/crash doesn't
   // lose work (Push to OWOX remains the real save).
   useEffect(() => { persistGraph(graph); }, [graph]);
+
+  // Track unsaved edits: any graph change after mount marks the canvas dirty;
+  // Save / open / start-new reset it to clean.
+  useEffect(() => {
+    if (skipFirstDirty.current) { skipFirstDirty.current = false; return; }
+    setDirty(true);
+  }, [graph]);
 
   // Warn before leaving while there's unpushed work — the model lives in the
   // session and may not all be in OWOX yet.
@@ -428,6 +439,7 @@ function CanvasInner() {
     setShowClear(false);
     setSavedModelId(null); // a cleared canvas is a fresh model — next Save creates a new row
     setModelName(DEFAULT_MODEL_NAME);
+    setDirty(false); // empty canvas has nothing unsaved
   }, []);
 
   const handleExportAndClear = useCallback(() => {
@@ -519,6 +531,7 @@ function CanvasInner() {
       }
       await createVersion(id, graph); // snapshot history (#4953)
       setVersionsBump(b => b + 1); // tell the History rail to refresh
+      setDirty(false); // saved → no unsaved edits
       setShareToast("Model saved");
     } catch (e) {
       setShareToast(`Save failed: ${(e as Error).message}`);
@@ -533,6 +546,7 @@ function CanvasInner() {
     store.set({ ...g });
     setSavedModelId(id);
     setModelName(name);
+    setDirty(false); // freshly opened → matches its saved state
   }, []);
 
   // Restore a past version onto the canvas. Keep it the same open model (don't
@@ -543,13 +557,15 @@ function CanvasInner() {
     setShareToast("Version restored to the canvas — Save to keep it.");
   }, []);
 
-  // "New model" from the rail: on a non-empty canvas, confirm with a calm "start
-  // fresh" dialog (not the red Clear-canvas warning); on an empty canvas, just
-  // reset to a clean slate.
+  // "New model" from the rail. Nothing to lose → just start fresh: an empty
+  // canvas, or a saved model with no edits since its last Save (it's safely in
+  // Models). Only confirm when there's genuinely unsaved work on the canvas.
   const handleNewModel = useCallback(() => {
-    if (store.get().nodes.length > 0) setShowNewModel(true);
-    else clearCanvas();
-  }, [clearCanvas]);
+    const empty = store.get().nodes.length === 0;
+    const safelySaved = !!savedModelId && !dirty;
+    if (empty || safelySaved) clearCanvas();
+    else setShowNewModel(true);
+  }, [clearCanvas, savedModelId, dirty]);
 
   // Confirmed start-new: wipe to a fresh model (clearCanvas resets id + name).
   const startNewModel = useCallback(() => { clearCanvas(); setShowNewModel(false); }, [clearCanvas]);
