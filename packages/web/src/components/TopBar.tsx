@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Download, Upload, ChevronDown, Target, Share2, FileText, Image as ImageIcon, Save } from "lucide-react";
+import { Download, Upload, ChevronDown, Target, FileText, Image as ImageIcon, Save } from "lucide-react";
 import { ProjectIcon, StorageIcon, LibraryIcon } from "../lib/icons";
 import { EnableControl } from "./EnableControl";
 
@@ -35,6 +35,8 @@ export interface TopBarProps {
   accountEmail?: string | null;
   onSave?: () => void;
   saving?: boolean;
+  // Save state caption under the Save button: "saved" | "unsaved" | null (hidden).
+  saveState?: "saved" | "unsaved" | null;
   // Opens the Enable (signed-out) or Account (signed-in) Sheet panel.
   onEnable?: () => void;
 }
@@ -65,11 +67,11 @@ const LOGO = (
 export function TopBar({
   pendingCount = 0, storages = [], storageId, onStorageChange,
   onImport, onImportFromOwox, onExport, onExportSvg, exportDisabled = false,
-  onShare, shareDisabled = false, onPush, onLibrary,
+  onPush, onLibrary,
   signedIn, projectTitle,
   onOpenGoal, goalSet = false, questionsEnabled = false,
   modelName,
-  supabaseEnabled = false, accountEmail, onSave, saving = false,
+  supabaseEnabled = false, accountEmail, onSave, saving = false, saveState = null,
   onEnable,
 }: TopBarProps) {
   // Push split-button menu (holds the signed-in "Import from OWOX project" action).
@@ -202,28 +204,32 @@ export function TopBar({
         )}
       </div>
 
-      {/* Share — copy a link that reopens this exact model (no sign-in needed) */}
-      <button
-        onClick={onShare}
-        disabled={shareDisabled}
-        title={shareDisabled ? "Add a mart first, then share" : "Copy a shareable link to this model"}
-        className="text-[13px] font-[550] border border-[#d8dee8] bg-white text-slate-900 rounded-lg px-3 py-[7px] cursor-pointer flex items-center gap-[6px] hover:bg-[#f1f3f7] disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <Share2 size={15} /> Share
-      </button>
+      {/* Share now lives in the right rail's Share panel — no top-bar button. */}
 
       {/* Save to your account (Supabase). Clicking while signed out opens the
           Enable panel (handled in Canvas.tsx handleSave). Hidden when Supabase
-          isn't configured (env kill-switch). */}
+          isn't configured (env kill-switch). A small caption under the button
+          tells the user whether the canvas is saved or has unsaved edits. */}
       {supabaseEnabled && (
-        <button
-          onClick={onSave}
-          disabled={saving}
-          title={accountEmail ? "Save this model to your account" : "Sign in to save this model"}
-          className="text-[13px] font-[550] border border-[#d8dee8] bg-white text-slate-900 rounded-lg px-3 py-[7px] cursor-pointer flex items-center gap-[6px] hover:bg-[#f1f3f7] disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Save size={15} /> {saving ? "Saving…" : "Save"}
-        </button>
+        <div className="relative flex items-center">
+          <button
+            onClick={onSave}
+            disabled={saving}
+            title={accountEmail ? "Save this model to your account" : "Sign in to save this model"}
+            className="text-[13px] font-[550] border border-[#d8dee8] bg-white text-slate-900 rounded-lg px-3 py-[7px] cursor-pointer flex items-center gap-[6px] hover:bg-[#f1f3f7] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save size={15} /> {saving ? "Saving…" : "Save"}
+          </button>
+          {saveState && !saving && (
+            <span
+              className={`pointer-events-none absolute left-1/2 top-[calc(100%+3px)] -translate-x-1/2 whitespace-nowrap text-[10px] font-medium leading-none ${
+                saveState === "unsaved" ? "text-amber-600" : "text-slate-400"
+              }`}
+            >
+              {saveState === "unsaved" ? "Unsaved changes" : "Changes saved"}
+            </span>
+          )}
+        </div>
       )}
 
       {/* Push to OWOX — split button: primary push + caret menu (signed-in only)

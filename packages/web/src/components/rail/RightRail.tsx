@@ -30,7 +30,7 @@ export function RightRail({ active, onOpen, signedIn, highlightId }: {
 }) {
   void signedIn; // reserved for sign-in-gated affordances in later tasks
   return (
-    <nav className="w-[74px] flex-shrink-0 border-l border-[#d8dee8] bg-[#fafafa] flex flex-col items-center gap-1 py-[14px] px-[6px] z-20">
+    <nav className="w-[60px] flex-shrink-0 border-l border-[#d8dee8] bg-[#fafafa] flex flex-col items-center gap-1 py-[14px] px-[4px] z-20">
       {ITEMS.map(it => {
         const on = it.id === (highlightId ?? active);
         return (

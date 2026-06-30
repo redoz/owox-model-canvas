@@ -759,6 +759,15 @@ function CanvasInner() {
     layoutAnimating ? "canvas-animating" : "",
   ].filter(Boolean).join(" ");
 
+  // Save-state caption for the top bar: empty canvas → hide; matches last saved
+  // snapshot → "saved"; otherwise "unsaved".
+  const saveState: "saved" | "unsaved" | null =
+    graph.nodes.length === 0
+      ? null
+      : savedModelId && savedSnapshot !== null && JSON.stringify(graph) === savedSnapshot
+        ? "saved"
+        : "unsaved";
+
   return (
     <div
       className="flex flex-col h-screen overflow-hidden bg-[#f7f8fa]"
@@ -790,6 +799,7 @@ function CanvasInner() {
         accountEmail={account?.email ?? null}
         onSave={handleSave}
         saving={saving}
+        saveState={saveState}
         onEnable={handleEnable}
       />
       {shareToast && <ShareToast message={shareToast} onClose={() => setShareToast(null)} />}

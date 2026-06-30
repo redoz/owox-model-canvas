@@ -23,7 +23,7 @@ export function EnableControl({ signedIn, modelName, onClick }: EnableControlPro
       onClick={onClick}
       aria-label={label}
       title={signedIn ? (modelName ? `Account — ${modelName}` : "Account") : "Enable saves and version history"}
-      className="flex items-center gap-[7px] max-w-[230px] rounded-lg border border-[#d8dee8] bg-white px-[10px] py-[6px] cursor-pointer hover:bg-[#f1f3f7]"
+      className="flex items-center gap-[7px] max-w-[230px] pl-[8px] pr-[4px] py-[2px] cursor-pointer rounded-lg hover:bg-[#f1f3f7] transition-colors"
     >
       {/* Status dot: gray when signed-out, green when signed-in */}
       <span
