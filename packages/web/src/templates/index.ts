@@ -23,6 +23,7 @@ import { telecom } from "./telecom";
 import { hospitality } from "./hospitality";
 import { restaurants } from "./restaurants";
 import { edtech } from "./edtech";
+import { travel_ota } from "./travel-ota";
 import { crypto_bitcoin } from "./bitcoin";
 import { stackoverflow } from "./stackoverflow";
 
@@ -44,6 +45,7 @@ export const TEMPLATES: Template[] = [
   hospitality,
   restaurants,
   edtech,
+  travel_ota,
   crypto_bitcoin,
   stackoverflow,
 ];
