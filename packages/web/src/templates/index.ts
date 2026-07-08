@@ -22,6 +22,7 @@ import { hr_people } from "./hr-people";
 import { telecom } from "./telecom";
 import { hospitality } from "./hospitality";
 import { restaurants } from "./restaurants";
+import { edtech } from "./edtech";
 import { crypto_bitcoin } from "./bitcoin";
 import { stackoverflow } from "./stackoverflow";
 
@@ -42,6 +43,7 @@ export const TEMPLATES: Template[] = [
   telecom,
   hospitality,
   restaurants,
+  edtech,
   crypto_bitcoin,
   stackoverflow,
 ];
