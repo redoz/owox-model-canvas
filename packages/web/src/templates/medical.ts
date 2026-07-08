@@ -5,6 +5,13 @@ import { f, mart, rel, type Template } from "./helpers";
 // carries scheduling (no-show, wait, lead time); fct_encounters the clinical
 // visit (LOS, 30-day readmission); fct_claims the revenue cycle (denials, AR
 // days) against the payer dimension. Patient and provider are conformed dims.
+//
+// Goal coverage (niche "healthcare"):
+//   30-day readmission      → fct_encounters.is_readmission_30d × dim_patient.risk_tier
+//   no-show rate            → fct_appointments (is_no_show, lead_time_days)
+//   AR days & denials       → fct_claims (ar_days, denial_code) × dim_payer
+//   LOS & bed utilization   → fct_encounters.length_of_stay_days + fct_bed_census_daily
+//   door-to-provider time   → fct_appointments.wait_minutes by dim_department
 const graph: ModelGraph = {
   storageId: null,
   nodes: [
@@ -29,12 +36,18 @@ const graph: ModelGraph = {
       f("name", "STRING", false, "Payer / insurance plan name."),
       f("plan_type", "STRING", false, "HMO / PPO / EPO / government."),
     ], "Reference of insurance payers / plans."),
+    mart("dim_department", "Department", "TABLE", [
+      f("department_id", "STRING", true, "Unique department identifier."),
+      f("name", "STRING", false, "Department name."),
+      f("specialty", "STRING", false, "Clinical specialty the department serves."),
+      f("staffed_beds", "INTEGER", false, "Number of staffed beds — the utilization denominator."),
+    ], "Reference of clinical departments with staffed-bed capacity."),
     mart("fct_appointments", "Appointments", "VIEW", [
       f("appointment_id", "STRING", true, "Unique appointment identifier."),
       f("patient_id", "STRING", false, "Patient who booked the appointment."),
       f("provider_id", "STRING", false, "Provider seeing the patient."),
       f("scheduled_at", "TIMESTAMP", false, "Scheduled date and time of the appointment."),
-      f("department", "STRING", false, "Department where the appointment takes place."),
+      f("department_id", "STRING", false, "Department where the appointment takes place."),
       f("status", "STRING", false, "Appointment status (e.g. booked, completed, cancelled)."),
       f("is_no_show", "BOOLEAN", false, "Whether the patient failed to show up."),
       f("wait_minutes", "INTEGER", false, "Door-to-provider wait."),
@@ -65,6 +78,15 @@ const graph: ModelGraph = {
       f("denial_code", "STRING", false, "CARC/RARC denial reason, when denied."),
       f("ar_days", "INTEGER", false, "Days in accounts receivable — revenue-cycle speed."),
     ], "One row per claim line. Revenue cycle, denials and AR days."),
+    mart("fct_bed_census_daily", "Bed Census (daily)", "VIEW", [
+      f("census_id", "STRING", true, "Unique identifier for the daily census record."),
+      f("department_id", "STRING", false, "Department the census covers."),
+      f("census_date", "DATE", false, "Calendar day of the census."),
+      f("staffed_beds", "INTEGER", false, "Beds staffed and available that day."),
+      f("occupied_beds", "INTEGER", false, "Beds occupied at census time — utilization numerator."),
+      f("admissions", "INTEGER", false, "Admissions during the day."),
+      f("discharges", "INTEGER", false, "Discharges during the day."),
+    ], "One row per department × day. Bed utilization and patient flow."),
   ],
   edges: [
     rel("e1", "fct_appointments", "dim_patient", "patient_id", "patient_id"),
@@ -73,6 +95,8 @@ const graph: ModelGraph = {
     rel("e4", "fct_encounters", "dim_patient", "patient_id", "patient_id"),
     rel("e5", "fct_claims", "fct_encounters", "encounter_id", "encounter_id"),
     rel("e6", "fct_claims", "dim_payer", "payer_id", "payer_id"),
+    rel("e7", "fct_appointments", "dim_department", "department_id", "department_id"),
+    rel("e8", "fct_bed_census_daily", "dim_department", "department_id", "department_id"),
   ],
 };
 
@@ -81,6 +105,6 @@ export const medical: Template = {
   nicheId: "healthcare",
   category: "industry",
   name: "Healthcare",
-  description: "Provider analytics: patients, providers, appointments, encounters (LOS/readmission) and claims/denials.",
+  description: "Provider analytics: patients, providers, departments, appointments, encounters (LOS/readmission), bed census and claims/denials.",
   graph,
 };
