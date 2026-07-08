@@ -18,6 +18,7 @@ import { delivery_logistics } from "./delivery-logistics";
 import { insurance } from "./insurance";
 import { b2b_sales } from "./b2b-sales";
 import { customer_support } from "./customer-support";
+import { hr_people } from "./hr-people";
 import { crypto_bitcoin } from "./bitcoin";
 import { stackoverflow } from "./stackoverflow";
 
@@ -34,6 +35,7 @@ export const TEMPLATES: Template[] = [
   insurance,
   b2b_sales,
   customer_support,
+  hr_people,
   crypto_bitcoin,
   stackoverflow,
 ];
