@@ -13,6 +13,7 @@ import { marketing_ads } from "./marketing-ads";
 import { mobile_gaming } from "./mobile-gaming";
 import { finance } from "./finance";
 import { medical } from "./medical";
+import { ott_media } from "./ott-media";
 import { crypto_bitcoin } from "./bitcoin";
 import { stackoverflow } from "./stackoverflow";
 
@@ -24,6 +25,7 @@ export const TEMPLATES: Template[] = [
   mobile_gaming,
   finance,
   medical,
+  ott_media,
   crypto_bitcoin,
   stackoverflow,
 ];
