@@ -5,6 +5,13 @@ import { f, mart, rel, type Template } from "./helpers";
 // demand (buyers, search) are deliberately separate branches; fct_orders is the
 // match where they meet, carrying GMV, take rate and fill. Liquidity = the rate
 // at which search requests and listings convert into completed orders.
+//
+// Goal coverage (niche "marketplace"):
+//   liquidity               → fct_search_requests (converted, time_to_match) × fct_orders
+//   supply utilization      → fct_listings (is_available) × dim_seller (is_activated)
+//   take-rate optimisation  → dim_category.take_rate_pct × fct_orders (gmv, take_rate)
+//   fill failures           → fct_cancellations (stage, cancelled_by) + fct_orders.fulfillment_mins
+//   repeat both sides       → dim_buyer.is_repeat + dim_seller × fct_orders cohorts
 const graph: ModelGraph = {
   storageId: null,
   nodes: [
@@ -27,11 +34,17 @@ const graph: ModelGraph = {
       f("is_activated", "BOOLEAN", false, "Reached first sale — supply activation."),
       f("fulfillment_type", "STRING", false, "How the seller fulfils orders."),
     ], "Supply side: one row per seller/supplier."),
+    mart("dim_category", "Category", "TABLE", [
+      f("category_id", "STRING", true, "Unique category identifier."),
+      f("name", "STRING", false, "Display name of the category."),
+      f("parent_category", "STRING", false, "Parent grouping in the category tree."),
+      f("take_rate_pct", "FLOAT", false, "Platform's standard cut for the category — the take-rate optimisation lever."),
+    ], "Reference of listing categories with their standard take rates."),
     mart("fct_listings", "Listings", "VIEW", [
       f("listing_id", "STRING", true, "Unique listing identifier."),
       f("seller_id", "STRING", false, "Seller that owns the listing."),
       f("created_at", "TIMESTAMP", false, "When the listing was created."),
-      f("category", "STRING", false, "Listing's product category."),
+      f("category_id", "STRING", false, "Category the listing belongs to."),
       f("price", "NUMERIC", false, "Listed price of the offer."),
       f("status", "STRING", false, "Current listing status."),
       f("is_available", "BOOLEAN", false, "Live inventory — supply availability."),
@@ -67,6 +80,15 @@ const graph: ModelGraph = {
       f("created_at", "TIMESTAMP", false, "When the review was submitted."),
       f("has_complaint", "BOOLEAN", false, "Whether the review flags a complaint."),
     ], "One row per post-transaction review. Trust and retention signal."),
+    mart("fct_cancellations", "Cancellations", "VIEW", [
+      f("cancellation_id", "STRING", true, "Unique cancellation identifier."),
+      f("order_id", "STRING", false, "Order that was cancelled."),
+      f("cancelled_at", "TIMESTAMP", false, "When the cancellation happened."),
+      f("cancelled_by", "STRING", false, "Who cancelled: buyer, seller or platform."),
+      f("stage", "STRING", false, "Order stage at cancellation (pre-payment, pre-fulfilment, in-transit)."),
+      f("reason", "STRING", false, "Stated cancellation reason."),
+      f("refund_amount", "NUMERIC", false, "Amount refunded to the buyer."),
+    ], "One row per cancelled order — fill-rate failures and their causes."),
   ],
   edges: [
     rel("e1", "fct_listings", "dim_seller", "seller_id", "seller_id"),
@@ -75,6 +97,8 @@ const graph: ModelGraph = {
     rel("e4", "fct_orders", "dim_seller", "seller_id", "seller_id"),
     rel("e5", "fct_orders", "fct_listings", "listing_id", "listing_id"),
     rel("e6", "fct_reviews", "fct_orders", "order_id", "order_id"),
+    rel("e7", "fct_listings", "dim_category", "category_id", "category_id"),
+    rel("e8", "fct_cancellations", "fct_orders", "order_id", "order_id"),
   ],
 };
 
@@ -83,6 +107,6 @@ export const marketplace: Template = {
   nicheId: "marketplace",
   category: "industry",
   name: "Marketplace",
-  description: "Two-sided platform: buyers, sellers, listings, search demand, GMV/take-rate orders and reviews.",
+  description: "Two-sided platform: buyers, sellers, listings & categories, search demand, GMV/take-rate orders, cancellations and reviews.",
   graph,
 };
