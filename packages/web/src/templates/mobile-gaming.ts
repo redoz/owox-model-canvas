@@ -5,6 +5,13 @@ import { f, mart, rel, type Template } from "./helpers";
 // the high-volume engagement streams (retention, FTUE funnel); monetization
 // splits into fct_iap_purchases (ARPPU, payer conversion) and fct_ad_impressions
 // (ad ARPDAU). fct_ua_spend closes the loop on CPI and D7 ROAS by campaign.
+//
+// Goal coverage (niche "mobile_gaming"):
+//   D1/D7/D30 retention     → fct_sessions.day_number cohorts by dim_campaign
+//   ARPDAU                  → fct_iap_purchases + fct_ad_impressions ÷ daily actives
+//   payer conversion/ARPPU  → fct_iap_purchases (is_first_purchase) × dim_product
+//   CPI & D7 ROAS           → fct_ua_spend (spend, installs) × player LTV by campaign
+//   FTUE funnel             → fct_events (event_name, level) step-through rates
 const graph: ModelGraph = {
   storageId: null,
   nodes: [
@@ -14,11 +21,24 @@ const graph: ModelGraph = {
       f("platform", "STRING", false, "Device platform (iOS / Android)."),
       f("country", "STRING", false, "Player's country."),
       f("acquisition_source", "STRING", false, "Channel that brought the player in."),
-      f("campaign", "STRING", false, "UA campaign — joins to spend."),
+      f("campaign_id", "STRING", false, "UA campaign that acquired the player — joins to spend via the campaign dim."),
       f("is_payer", "BOOLEAN", false, "Whether the player has ever paid."),
       f("ltv", "NUMERIC", false, "Lifetime value to date."),
       f("last_active_date", "DATE", false, "Most recent day the player was active."),
     ], "One row per player/install. Acquisition, device and LTV state."),
+    mart("dim_campaign", "UA Campaign", "TABLE", [
+      f("campaign_id", "STRING", true, "Unique identifier for the user-acquisition campaign."),
+      f("network", "STRING", false, "Ad network the campaign runs on."),
+      f("campaign_name", "STRING", false, "Human-readable campaign name."),
+      f("country", "STRING", false, "Country the campaign targets."),
+      f("platform", "STRING", false, "Store platform targeted (iOS / Android)."),
+    ], "Reference of UA campaigns — the join between spend and acquired players."),
+    mart("dim_product", "IAP Catalog", "TABLE", [
+      f("product_sku", "STRING", true, "Store SKU identifying the purchasable item."),
+      f("name", "STRING", false, "Display name of the item."),
+      f("product_type", "STRING", false, "Kind of item: currency pack, battle pass, cosmetic, bundle."),
+      f("price_tier", "NUMERIC", false, "Standard store price point in USD."),
+    ], "Reference of in-app purchase SKUs — ARPPU mix by product type."),
     mart("fct_sessions", "Sessions", "CONNECTOR", [
       f("session_id", "STRING", true, "Unique session identifier."),
       f("player_id", "STRING", false, "Player who played the session."),
@@ -60,7 +80,7 @@ const graph: ModelGraph = {
       f("spend_id", "STRING", true, "Unique spend record identifier."),
       f("spend_date", "DATE", false, "Date the spend occurred."),
       f("network", "STRING", false, "Ad network the spend went to."),
-      f("campaign", "STRING", false, "UA campaign the spend belongs to."),
+      f("campaign_id", "STRING", false, "UA campaign the spend belongs to."),
       f("country", "STRING", false, "Country targeted by the spend."),
       f("installs", "INTEGER", false, "Installs attributed to the spend."),
       f("spend_usd", "NUMERIC", false, "Amount spent in USD."),
@@ -74,7 +94,9 @@ const graph: ModelGraph = {
     rel("e3", "fct_events", "fct_sessions", "session_id", "session_id"),
     rel("e4", "fct_iap_purchases", "dim_player", "player_id", "player_id"),
     rel("e5", "fct_ad_impressions", "dim_player", "player_id", "player_id"),
-    rel("e6", "fct_ua_spend", "dim_player", "campaign", "campaign", "N:N"),
+    rel("e6", "fct_ua_spend", "dim_campaign", "campaign_id", "campaign_id"),
+    rel("e7", "dim_player", "dim_campaign", "campaign_id", "campaign_id"),
+    rel("e8", "fct_iap_purchases", "dim_product", "product_sku", "product_sku"),
   ],
 };
 
@@ -83,6 +105,6 @@ export const mobile_gaming: Template = {
   nicheId: "mobile_gaming",
   category: "industry",
   name: "Mobile / Gaming",
-  description: "Free-to-play telemetry: players, sessions, events, IAP, ad impressions and user-acquisition spend.",
+  description: "Free-to-play telemetry: players, UA campaigns & spend, sessions, events, IAP catalog & purchases, ad impressions.",
   graph,
 };
