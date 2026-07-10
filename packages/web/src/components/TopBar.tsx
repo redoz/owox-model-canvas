@@ -10,18 +10,15 @@ const LIBRARY_HINT_KEY = "mc.libraryHint.v1";
 export interface StorageOption { id: string; title: string; type: string; }
 
 export interface TopBarProps {
-  pendingCount?: number;
   storages?: StorageOption[];
   storageId?: string | null;
   onStorageChange?: (id: string) => void;
   onImport?: () => void;
-  onImportFromOwox?: () => void;
   onExport?: () => void;
   onExportSvg?: () => void;
   exportDisabled?: boolean;
   onShare?: () => void;
   shareDisabled?: boolean;
-  onPush?: () => void;
   onLibrary?: () => void;
   signedIn: boolean;
   projectTitle?: string;
@@ -64,17 +61,15 @@ const LOGO = (
 );
 
 export function TopBar({
-  pendingCount = 0, storages = [], storageId, onStorageChange,
-  onImport, onImportFromOwox, onExport, onExportSvg, exportDisabled = false,
-  onPush, onLibrary,
+  storages = [], storageId, onStorageChange,
+  onImport, onExport, onExportSvg, exportDisabled = false,
+  onLibrary,
   signedIn, projectTitle,
   onOpenGoal, goalSet = false,
   modelName,
   supabaseEnabled = false, accountEmail,
   onEnable,
 }: TopBarProps) {
-  // Push split-button menu (holds the signed-in "Import from OWOX project" action).
-  const [menuOpen, setMenuOpen] = useState(false);
   // Export dropdown (OKF markdown / PNG / SVG).
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   // Show the Library hint on first ever visit; stays lit until hovered.
@@ -200,47 +195,6 @@ export function TopBar({
       </div>
 
       {/* Share and Save both live in the right rail now — no top-bar buttons. */}
-
-      {/* Push to OWOX — split button: primary push + caret menu (signed-in only)
-          holding the less-common "Import from OWOX project" action. */}
-      <div className="relative flex items-center">
-        <button
-          onClick={onPush}
-          className={`text-[13px] font-[550] bg-[#1e88e5] text-white border border-[#1e88e5] px-3 py-[7px] cursor-pointer flex items-center gap-[6px] hover:bg-[#1976d2] ${signedIn ? "rounded-l-lg border-r-0" : "rounded-lg"}`}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} width={15} height={15}>
-            <path d="M5 12h14M13 6l6 6-6 6"/>
-          </svg>
-          Push to OWOX{pendingCount > 0 && <span className="opacity-80">({pendingCount})</span>}
-        </button>
-        {signedIn && (
-          <>
-            <button
-              onClick={() => setMenuOpen(o => !o)}
-              aria-label="More OWOX actions"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              className="text-white bg-[#1e88e5] border border-[#1e88e5] border-l border-l-[#4d97e8] rounded-r-lg px-[7px] py-[9px] cursor-pointer hover:bg-[#1976d2] flex items-center"
-            >
-              <ChevronDown size={15} />
-            </button>
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                <div role="menu" className="absolute top-[calc(100%+6px)] right-0 z-50 w-[230px] rounded-lg border border-[#d8dee8] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.18)] py-1">
-                  <button
-                    role="menuitem"
-                    onClick={() => { setMenuOpen(false); onImportFromOwox?.(); }}
-                    className="w-full text-left text-[13px] text-slate-900 px-3 py-2 cursor-pointer flex items-center gap-[8px] hover:bg-[#f1f3f7]"
-                  >
-                    <Download size={15} /> Import from OWOX project
-                  </button>
-                </div>
-              </>
-            )}
-          </>
-        )}
-      </div>
 
       {/* Enable control — opens the Enable (signed-out) or Account (signed-in)
           Sheet panel. Replaces the old OWOX sign-in button and account chip.

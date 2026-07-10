@@ -11,8 +11,8 @@ beforeEach(() => {
 describe("anonymous canvas", () => {
   it("renders the canvas (no gate) for anonymous users — no OWOX connect modal on load", async () => {
     render(<App />);
-    // Canvas loads freely; "Push to OWOX" always appears, no forced sign-in gate.
-    await waitFor(() => expect(screen.getByText(/Push to OWOX/i)).toBeTruthy());
+    // Canvas loads freely; the Templates control always appears, no forced sign-in gate.
+    await waitFor(() => expect(screen.getByText(/Templates/i)).toBeTruthy());
     expect(screen.queryByText("Connect to OWOX")).toBeNull();
   });
 });

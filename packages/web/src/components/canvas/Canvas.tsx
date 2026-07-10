@@ -20,7 +20,7 @@ import "@xyflow/react/dist/style.css";
 import "./canvas.css";
 
 import dagre from "@dagrejs/dagre";
-import { X, MessageSquare } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 
 import { createModelStore } from "../../state/model";
 import { loadPersistedGraph, persistGraph } from "../../state/persist";
@@ -33,27 +33,20 @@ import { graphToBundleFiles, downloadBundle } from "../../okf/io";
 import { buildShareUrl, readSharedModel, readSharedName, clearSharedModelFromUrl } from "../../share/url";
 import { readTemplateModel, clearTemplateFromUrl } from "../../lib/templateLink";
 import { exportCanvasSvg } from "../../share/exportImage";
-import { pushModel, pushPreview, type PushResult } from "../../sync/push";
-import { detachFromOwox } from "../../sync/detach";
 
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useAccount } from "../../lib/account";
 import { supabaseEnabled } from "../../lib/supabase";
-import { isAuthRedirecting } from "../../lib/authRedirect";
 import { createModel, updateModel, createVersion, listModels, loadModel, deleteModel, listVersions, loadVersion, type SavedModel, type ModelVersion } from "../../lib/models";
 import { TopBar, type StorageOption } from "../TopBar";
 import { ImportDialog } from "../ImportDialog";
-import { OwoxImportDialog } from "../OwoxImportDialog";
 import { mergeGraphs } from "../../sync/owoxImport";
 import { LibraryDialog } from "../LibraryDialog";
 import { TemplateApplyDialog } from "../TemplateApplyDialog";
 import { WelcomeDialog } from "../WelcomeDialog";
-import { SignInModal } from "../SignInModal";
-import { PushConfirmDialog } from "../PushConfirmDialog";
 import { ClearCanvasDialog } from "../ClearCanvasDialog";
 import { NewModelDialog } from "../NewModelDialog";
-import { pushIntent } from "../../sync/pushGate";
 import { reconcileStorageId } from "../../sync/storageReconcile";
 import { Dock, type Tool } from "./Dock";
 import { MartNode } from "./MartNode";
@@ -198,22 +191,17 @@ function CanvasInner() {
     persistRelLabelMode(mode);
   }, []);
   const [showImport, setShowImport] = useState(false);
-  const [showOwoxImport, setShowOwoxImport] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
   // A template chosen from the library while the canvas already had content —
   // held until the user confirms Replace vs Merge in the TemplateApplyDialog.
   const [pendingTemplate, setPendingTemplate] = useState<{ graph: ModelGraph; name: string } | null>(null);
   // First-screen chooser — shown once to brand-new visitors (no persisted model).
   const [showWelcome, setShowWelcome] = useState(isFirstVisit);
-  const [pushing, setPushing] = useState(false);
-  const [pushResult, setPushResult] = useState<PushResult | null>(null);
   const [shareToast, setShareToast] = useState<string | null>(null);
   const [storages, setStorages] = useState<StorageOption[]>([]);
-  const [signIn, setSignIn] = useState<{ mode: "connect" | "push" } | null>(null);
-  const [showPushConfirm, setShowPushConfirm] = useState(false);
   const [showClear, setShowClear] = useState(false);
   const [showNewModel, setShowNewModel] = useState(false);
-  const { me, connect, signOut } = useAuth();
+  const { me } = useAuth();
   // Supabase account ("Save your model") — independent of the OWOX connect above.
   const { user: account, signOut: accountSignOut, signInWithGoogle, signInWithGitHub, signInWithEmail } = useAccount();
   // Clear the gated highlight once the user signs in so the stale icon doesn't persist.
@@ -317,22 +305,8 @@ function CanvasInner() {
   }, [selection, viewMode, graph.edges, graph.nodes, setRfEdges]);
 
   // Mirror the model to localStorage on every change so a refresh/crash doesn't
-  // lose work (Push to OWOX remains the real save).
+  // lose work.
   useEffect(() => { persistGraph(graph); }, [graph]);
-
-
-  // Warn before leaving while there's unpushed work — the model lives in the
-  // session and may not all be in OWOX yet.
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (isAuthRedirecting()) return; // intentional OAuth redirect, not a real exit
-      if (!store.get().nodes.some(n => n.status !== "created")) return;
-      e.preventDefault();
-      e.returnValue = ""; // required for Chrome to show the native prompt
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, []);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     onRfNodesChange(changes);                       // animate the drag live
@@ -500,7 +474,7 @@ function CanvasInner() {
   }, [viewMode]);
 
   // Merge a freshly loaded graph into the canvas, laying out only the new nodes
-  // so the existing layout isn't reshuffled. Shared by OKF + OWOX import (merge).
+  // so the existing layout isn't reshuffled. Shared by OKF import + templates (merge).
   const applyMergeWithLayout = useCallback((g: ModelGraph) => {
     const { graph, newKeys } = mergeGraphs(store.get(), g);
     const positions = runDagreLayout(graph.nodes, graph.edges, viewMode);
@@ -517,12 +491,6 @@ function CanvasInner() {
       store.set({ ...withLayout(g), storageId: store.get().storageId ?? g.storageId });
     }
     setShowImport(false);
-  }, [withLayout, applyMergeWithLayout]);
-
-  const handleOwoxImportConfirm = useCallback((g: ModelGraph, mode: "replace" | "merge") => {
-    if (mode === "merge") applyMergeWithLayout(g);
-    else store.set({ ...withLayout(g), storageId: g.storageId });
-    setShowOwoxImport(false);
   }, [withLayout, applyMergeWithLayout]);
 
   const applyTemplate = useCallback((g: ModelGraph, mode: "replace" | "merge") => {
@@ -692,46 +660,6 @@ function CanvasInner() {
     setShowLibrary(false);
   }, [pendingTemplate, applyTemplate]);
 
-  const runPush = useCallback(async (storagesList: StorageOption[] = storages) => {
-    setPushResult(null);
-    setPushing(true);
-    try {
-      const storageType = storagesList.find(s => s.id === store.get().storageId)?.type;
-      const result = await pushModel(store, undefined, storageType);
-      setPushResult(result);
-    } catch (e) {
-      setPushResult({ created: 0, updated: 0, failed: 0, relationshipsCreated: 0, relationshipsFailed: 0, errors: [(e as Error).message] });
-    } finally {
-      setPushing(false);
-    }
-  }, [storages]);
-
-  const handlePush = useCallback(() => {
-    // Anonymous → sign in first (no project/storage to confirm yet). Signed-in →
-    // confirm the target project + storage before sending (users kept pushing to
-    // the wrong storage).
-    if (pushIntent(me) === "sign-in") { setSignIn({ mode: "push" }); return; }
-    setShowPushConfirm(true);
-  }, [me]);
-
-  // Any sign-out detaches the model from OWOX (owoxId/created → unpushed drafts),
-  // so the same marts can be pushed into a different project after re-signing in.
-  const handleSignOut = useCallback(() => {
-    store.set(detachFromOwox(store.get()));
-    void signOut();
-  }, [signOut]);
-
-  // From the push dialog: detach + sign out, then immediately open sign-in so the
-  // user can connect a different project's key.
-  const handleChangeProject = useCallback(() => {
-    setShowPushConfirm(false);
-    handleSignOut();
-    setSignIn({ mode: "connect" });
-  }, [handleSignOut]);
-
-  // ── Pending count for TopBar ───────────────────────────────────────────────
-  const pendingCount = graph.nodes.filter(n => n.status === "pending").length;
-
   // ── Canvas class based on tool ─────────────────────────────────────────────
   const canvasClass = [
     tool === "add" ? "canvas-add" : tool === "connect" ? "canvas-connect" : "",
@@ -755,18 +683,15 @@ function CanvasInner() {
       tabIndex={0}
     >
       <TopBar
-        pendingCount={pendingCount}
         storages={storages}
         storageId={graph.storageId}
         onStorageChange={handleStorageChange}
         onImport={() => setShowImport(true)}
-        onImportFromOwox={() => setShowOwoxImport(true)}
         onExport={handleExport}
         onExportSvg={handleExportSvg}
         exportDisabled={graph.nodes.length === 0}
         onShare={handleShare}
         shareDisabled={graph.nodes.length === 0}
-        onPush={handlePush}
         onLibrary={() => setShowLibrary(true)}
         onOpenGoal={() => setShowGoal(true)}
         goalSet={!!goal}
@@ -778,35 +703,10 @@ function CanvasInner() {
         onEnable={handleEnable}
       />
       {shareToast && <ShareToast message={shareToast} onClose={() => setShareToast(null)} />}
-      {pushing && (
-        <div className="fixed bottom-4 right-4 z-50 bg-slate-900 text-white text-[13px] px-4 py-2 rounded-lg shadow-lg">
-          Pushing to OWOX…
-        </div>
-      )}
-      {!pushing && pushResult && (
-        <PushToast result={pushResult} onClose={() => setPushResult(null)} />
-      )}
       {showImport && (
         <ImportDialog
           onConfirm={handleImportConfirm}
           onClose={() => setShowImport(false)}
-        />
-      )}
-      {showOwoxImport && (
-        <OwoxImportDialog
-          storages={storages}
-          onConfirm={handleOwoxImportConfirm}
-          onClose={() => setShowOwoxImport(false)}
-        />
-      )}
-      {showPushConfirm && me && (
-        <PushConfirmDialog
-          projectTitle={me.projectTitle}
-          storage={storages.find(s => s.id === graph.storageId) ?? null}
-          counts={pushPreview(graph, graph.storageId)}
-          onConfirm={() => { setShowPushConfirm(false); void runPush(); }}
-          onChangeProject={handleChangeProject}
-          onClose={() => setShowPushConfirm(false)}
         />
       )}
       {showClear && (
@@ -863,26 +763,6 @@ function CanvasInner() {
           onClose={() => setHistoryDiff(null)}
         />
       )}
-      {signIn && (
-        <SignInModal
-          mode={signIn.mode}
-          connect={connect}
-          onConnected={async () => {
-            const mode = signIn.mode;
-            setSignIn(null);
-            const list = await loadStorages();
-            if (mode === "push") {
-              if (list.length === 0) {
-                setPushResult({ created: 0, updated: 0, failed: 0, relationshipsCreated: 0, relationshipsFailed: 0, errors: ["Couldn't load your OWOX storages — please try Push again."] });
-                return;
-              }
-              await runPush(list);
-            }
-          }}
-          onClose={() => setSignIn(null)}
-        />
-      )}
-
       <div className="flex flex-1 min-h-0 relative">
         {/* React Flow canvas */}
         <div
@@ -1009,33 +889,6 @@ function CanvasInner() {
         </ModelSheet>
         <RightRail active={panel.active} onOpen={handleRailOpen} signedIn={!!account} highlightId={visualRailId} onSave={supabaseEnabled ? handleSave : undefined} saving={saving} saveState={saveState} />
       </div>
-    </div>
-  );
-}
-
-// ── Push result toast (sticky — dismissed by the user, not on a timer) ─────────
-function PushToast({ result, onClose }: { result: PushResult; onClose: () => void }) {
-  const hasFailures = result.failed > 0 || result.relationshipsFailed > 0;
-  const summary = `${result.created} mart${result.created === 1 ? "" : "s"} created`
-    + (result.relationshipsCreated ? `, ${result.relationshipsCreated} link${result.relationshipsCreated === 1 ? "" : "s"} created` : "")
-    + (hasFailures ? `, ${result.failed + result.relationshipsFailed} failed` : "");
-  return (
-    <div className={`fixed bottom-4 right-4 z-50 w-[420px] max-h-[60vh] overflow-y-auto rounded-xl shadow-2xl border text-[13px] ${hasFailures ? "bg-white border-red-300" : "bg-white border-emerald-300"}`}>
-      <div className="flex items-start gap-2 px-4 py-3 border-b border-slate-100">
-        <span className={`mt-[2px] h-2 w-2 rounded-full flex-shrink-0 ${hasFailures ? "bg-red-500" : "bg-emerald-500"}`} />
-        <div className="flex-1 font-semibold text-slate-800">
-          {hasFailures ? "Push completed with errors" : "Push complete"}
-          <div className="font-normal text-slate-500 text-[12px] mt-0.5">{summary}</div>
-        </div>
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-700" title="Dismiss"><X size={16} /></button>
-      </div>
-      {result.errors.length > 0 && (
-        <ul className="px-4 py-2 flex flex-col gap-1.5">
-          {result.errors.map((err, i) => (
-            <li key={i} className="text-[12px] text-red-600 leading-snug break-words font-mono">{err}</li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
