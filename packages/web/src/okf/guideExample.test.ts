@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { filesToGraph } from "./io";
-import { parseBundle } from "@mc/okf";
 
 // The exact worked example from public/okf-format.md (the AI authoring guide).
 // This guards that the documented format — especially the Joins syntax — keeps

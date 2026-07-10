@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("./fixtures/google", import.meta.url));
@@ -12,7 +12,9 @@ export function loadBundle(name: string): Record<string, string> {
     for (const e of readdirSync(dir, { withFileTypes: true })) {
       const p = join(dir, e.name);
       if (e.isDirectory()) walk(p);
-      else if (e.name.endsWith(".md")) out[relative(base, p)] = readFileSync(p, "utf8");
+      // Normalize to "/" so bundle keys match the format's forward-slash paths
+      // on Windows too (relative() yields "\" separators there).
+      else if (e.name.endsWith(".md")) out[relative(base, p).split(sep).join("/")] = readFileSync(p, "utf8");
     }
   };
   walk(base);

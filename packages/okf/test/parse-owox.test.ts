@@ -47,7 +47,7 @@ tags: ["owox", "view"]
 `;
 
 // Faithful-OWOX: Joins bullet has NO keys; recovered from FK note + target PK.
-const ordersFaithful = ordersSuperset.replace("— \`customer_id = id\`", "");
+const ordersFaithful = ordersSuperset.replace("— `customer_id = id`", "");
 
 describe("parseBundle (OWOX format)", () => {
   it("reads PK from the PK. token and identity from Overview", () => {
