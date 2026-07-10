@@ -1,6 +1,6 @@
-# Contributing to OWOX Model Canvas
+# Contributing to OKF Canvas
 
-Thanks for your interest! OWOX Model Canvas is a free, open-source visual editor for data models in the **Open Knowledge Format (OKF)**. Bug reports, fixes, templates, and OKF-compatibility improvements are all welcome.
+Thanks for your interest! OKF Canvas is a free, open-source visual editor for data models in the **Open Knowledge Format (OKF)**. Bug reports, fixes, templates, and OKF-compatibility improvements are all welcome.
 
 By contributing, you agree that your contributions are licensed under the project's [Apache License 2.0](LICENSE), and that you follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 

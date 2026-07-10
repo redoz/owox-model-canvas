@@ -1,6 +1,6 @@
-# OWOX Model Canvas — OKF authoring guide for AI agents
+# OKF Canvas — OKF authoring guide for AI agents
 
-Use this to generate a data model in **OKF (Open Knowledge Format)** that imports cleanly into **OWOX Model Canvas** (https://model.owox.com) and pushes to OWOX Data Marts in one click.
+Use this to generate a data model in **OKF (Open Knowledge Format)** that imports cleanly into **OKF Canvas** (https://model.owox.com) and pushes to OWOX Data Marts in one click.
 
 **How the user will use your output:** they open **Import** on the canvas, paste your text (or upload a `.zip`), review the rendered graph, then **Push to OWOX**.
 

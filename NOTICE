@@ -20,3 +20,10 @@ limitations under the License.
 (GoogleCloudPlatform/knowledge-catalog). OWOX Model Canvas reads and writes
 that format but is an independent, community project — it is not affiliated
 with or endorsed by Google.
+
+---
+Modifications
+This distribution ("OKF Canvas") is a modified derivative work of OWOX Model
+Canvas. Significant changes were made by Patrik Husfloen (redoz), 2026, and are
+released under the same Apache License, Version 2.0. This derivative is not
+affiliated with or endorsed by OWOX, Inc.

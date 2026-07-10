@@ -3,7 +3,7 @@ import { PanelRight, Clock, Share2, Save } from "lucide-react";
 import type { RightPanelId } from "./useRightPanel";
 
 const ModelsGlyph = ({ size = 20 }: { size?: number }) => (
-  // OWOX Model Canvas favicon — hub-and-spoke, drawn in currentColor for the rail
+  // OKF Canvas favicon — hub-and-spoke, drawn in currentColor for the rail
   <svg viewBox="0 0 48 48" width={size} height={size} fill="none" aria-hidden="true">
     <g stroke="currentColor" strokeWidth={4.5} strokeLinecap="round">
       <line x1="24" y1="24" x2="24" y2="9" /><line x1="24" y1="24" x2="38" y2="19.5" />

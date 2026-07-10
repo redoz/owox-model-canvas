@@ -1,4 +1,6 @@
-# OWOX Model Canvas
+# OKF Canvas
+
+> **OKF Canvas is a community fork of [OWOX Model Canvas](https://github.com/OWOX/owox-model-canvas)** (© OWOX, Inc., licensed Apache-2.0). It is an independent derivative maintained by Patrik Husfloen (redoz) and is not affiliated with or endorsed by OWOX. See [NOTICE](NOTICE) for attribution and a summary of changes.
 
 <img width="1920" height="1200" alt="1782428766581" src="https://github.com/user-attachments/assets/0cdc74a8-c28a-4e77-a637-6b9c2bef65fd" />
 
@@ -6,7 +8,7 @@
 
 **▶ Open the live app: [model.owox.com](https://model.owox.com)** — free, no sign-in.
 
-OWOX Model Canvas is a Miro-like canvas for data people. Sketch your **data marts** (tables, views, SQL or connector outputs) as nodes and **joinable relationships** as edges, start from ready-made templates, see the business questions a model unlocks (AI), share it as a link, and — when you're ready — push the whole thing into [OWOX Data Marts](https://www.owox.com/) as drafts. The canvas is 100% free and works without an account; an OWOX API key is needed only to **Push**.
+OKF Canvas is a Miro-like canvas for data people. Sketch your **data marts** (tables, views, SQL or connector outputs) as nodes and **joinable relationships** as edges, start from ready-made templates, see the business questions a model unlocks (AI), share it as a link, and — when you're ready — push the whole thing into [OWOX Data Marts](https://www.owox.com/) as drafts. The canvas is 100% free and works without an account; an OWOX API key is needed only to **Push**.
 
 ## Why use it
 
@@ -99,4 +101,4 @@ Please report security issues privately — see [SECURITY.md](SECURITY.md). Don'
 
 [Apache License 2.0](LICENSE) — © 2026 OWOX, Inc. See [NOTICE](NOTICE).
 
-> "Open Knowledge Format (OKF)" is an open specification published by Google. OWOX Model Canvas reads and writes that format but is an independent, community project — not affiliated with or endorsed by Google.
+> "Open Knowledge Format (OKF)" is an open specification published by Google. OKF Canvas reads and writes that format but is an independent, community project — not affiliated with or endorsed by Google.
