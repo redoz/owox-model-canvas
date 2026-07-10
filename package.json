@@ -3,10 +3,10 @@
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
-    "dev": "pnpm --filter @mc/server dev",
+    "dev": "pnpm --filter @mc/web dev",
     "dev:web": "pnpm --filter @mc/web dev",
-    "build": "pnpm --filter @mc/okf build && pnpm --filter @mc/web build && pnpm --filter @mc/server build",
-    "serve": "lsof -ti:3111 | xargs kill -9 2>/dev/null; pnpm build && PORT=3111 pnpm --filter @mc/server start",
+    "build": "pnpm --filter @mc/okf build && pnpm --filter @mc/web build",
+    "serve": "pnpm build && pnpm --filter @mc/web preview",
     "test": "pnpm -r test",
     "lint": "eslint .",
     "format": "prettier --write .",
