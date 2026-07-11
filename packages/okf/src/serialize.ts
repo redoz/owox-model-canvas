@@ -125,7 +125,7 @@ export function serializeBundle(graph: ModelGraph, projectTitle = "Model"): OkfB
       if (n) hintLines.push(`- collapse [${n.title}](./${slugByKey.get(k)}.md)`);
     }
     const hints = hintLines.length ? `\n## Render hints\n${hintLines.join("\n")}\n` : "";
-    const fm = renderFrontmatter({ type: "Diagram", title: d.title, profile: d.profile });
+    const fm = renderFrontmatter({ type: "Diagram", title: d.title, profile: d.profile, ...(d.display ? { display: d.display } : {}) });
     files[`${folder}/${d.key}.md`] = `---\n${fm}\n---\n\n# ${d.title}\n\n## Members\n${memberLines.join("\n")}\n${hints}`;
   }
 

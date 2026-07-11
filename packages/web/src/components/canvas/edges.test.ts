@@ -1,5 +1,6 @@
 import { describe, it, test, expect } from "vitest";
 import type { ModelNode, ModelEdge } from "@uaml/okf";
+import { DEFAULT_DISPLAY, type DiagramDisplay } from "@uaml/okf";
 import { createModelStore } from "@uaml/core/state/model";
 import { buildRfEdges, isEdgeReconnectable, buildAnchorEdges } from "./edges";
 
@@ -8,11 +9,16 @@ const node = (key: string, x = 0): ModelNode =>
 const edge = (over: Partial<ModelEdge> = {}): ModelEdge =>
   ({ id: "e1", kind: "associates", from: "a", to: "b", fromEnd: {}, toEnd: { navigable: true }, bidirectional: false, ...over });
 
+const disp = (over: Partial<DiagramDisplay> = {}): DiagramDisplay => ({ ...DEFAULT_DISPLAY, ...over });
+// Attributes hidden ⇒ compact (200×90) footprint, matching the old "compact" mode.
+const compact = disp({ showAttributes: false });
+const detailed = disp({ showAttributes: true });
+
 const nodes = [node("a"), node("b", 600)];
 
 describe("buildRfEdges", () => {
-  it("compact: one edge per model edge (floating — no fixed handle set)", () => {
-    const out = buildRfEdges([edge()], nodes, "compact");
+  it("one edge per model edge (floating — no fixed handle set)", () => {
+    const out = buildRfEdges([edge()], nodes, compact);
     expect(out).toHaveLength(1);
     expect(out[0].id).toBe("e1");
     expect(out[0].source).toBe("a");
@@ -25,8 +31,8 @@ describe("buildRfEdges", () => {
     expect((out[0].data as { modelEdgeId?: string }).modelEdgeId).toBe("e1");
   });
 
-  it("erd: still one edge per model edge with associates kind + modelEdgeId", () => {
-    const out = buildRfEdges([edge()], nodes, "erd");
+  it("still one edge per model edge when attributes are shown", () => {
+    const out = buildRfEdges([edge()], nodes, detailed);
     expect(out).toHaveLength(1);
     expect(out[0].id).toBe("e1");
     expect((out[0].data as { kind?: string }).kind).toBe("associates");
@@ -35,7 +41,7 @@ describe("buildRfEdges", () => {
 
   it("assigns an exit side per end from node geometry", () => {
     // b sits to the right of a → a exits Right, b receives on Left.
-    const out = buildRfEdges([edge()], nodes, "compact");
+    const out = buildRfEdges([edge()], nodes, compact);
     const d = out[0].data as { sourceSide?: string; targetSide?: string };
     expect(d.sourceSide).toBe("right");
     expect(d.targetSide).toBe("left");
@@ -47,7 +53,7 @@ describe("buildRfEdges", () => {
     const lo = { ...node("c"), position: { x: 600, y: 200 } };   // right & below
     const out = buildRfEdges(
       [edge({ id: "e1", from: "a", to: "b" }), edge({ id: "e2", from: "a", to: "c" })],
-      [a, hi, lo], "compact",
+      [a, hi, lo], compact,
     );
     const d1 = out.find(e => e.id === "e1")!.data as { sourceSide?: string; sourceSlot?: { index: number; count: number } };
     const d2 = out.find(e => e.id === "e2")!.data as { sourceSide?: string; sourceSlot?: { index: number; count: number } };
@@ -61,31 +67,31 @@ describe("buildRfEdges", () => {
   });
 });
 
-describe("buildRfEdges data passthrough", () => {
+describe("buildRfEdges data passthrough (driven by the active diagram's display)", () => {
   it("carries the end multiplicities and bidirectional flag", () => {
-    const out = buildRfEdges([edge({ fromEnd: { multiplicity: "*" }, toEnd: { multiplicity: "1" } })], nodes, "compact");
+    const out = buildRfEdges([edge({ fromEnd: { multiplicity: "*" }, toEnd: { multiplicity: "1" } })], nodes, compact);
     expect((out[0].data as { fromEnd?: { multiplicity?: string } }).fromEnd?.multiplicity).toBe("*");
     expect((out[0].data as { toEnd?: { multiplicity?: string } }).toEnd?.multiplicity).toBe("1");
   });
 
-  it("threads the relLabelMode into edge data", () => {
-    const out = buildRfEdges([edge()], nodes, "compact", "hidden");
-    expect((out[0].data as { relLabelMode?: string }).relLabelMode).toBe("hidden");
+  it("threads associationLabels into edge data", () => {
+    const out = buildRfEdges([edge()], nodes, disp({ associationLabels: "hidden" }));
+    expect((out[0].data as { associationLabels?: string }).associationLabels).toBe("hidden");
   });
 
-  it("defaults the mode to 'all' when the arg is omitted", () => {
-    const out = buildRfEdges([edge()], nodes, "compact");
-    expect((out[0].data as { relLabelMode?: string }).relLabelMode).toBe("all");
+  it("reflects associationLabels 'all' (the default) into edge data", () => {
+    const out = buildRfEdges([edge()], nodes, disp());
+    expect((out[0].data as { associationLabels?: string }).associationLabels).toBe("all");
   });
 
-  it("threads emphasizeMultiplicity=false into every edge's data", () => {
-    const out = buildRfEdges([edge(), edge({ id: "e2" })], nodes, "compact", "all", false);
-    expect(out.every(e => (e.data as { emphasizeMultiplicity?: boolean }).emphasizeMultiplicity === false)).toBe(true);
+  it("threads emphasizeMultiplicity into every edge's data", () => {
+    const out = buildRfEdges([edge(), edge({ id: "e2" })], nodes, disp({ emphasizeMultiplicity: true }));
+    expect(out.every(e => (e.data as { emphasizeMultiplicity?: boolean }).emphasizeMultiplicity === true)).toBe(true);
   });
 
-  it("defaults emphasizeMultiplicity to true when the arg is omitted", () => {
-    const out = buildRfEdges([edge()], nodes, "compact");
-    expect((out[0].data as { emphasizeMultiplicity?: boolean }).emphasizeMultiplicity).toBe(true);
+  it("defaults emphasizeMultiplicity to false (per DEFAULT_DISPLAY)", () => {
+    const out = buildRfEdges([edge()], nodes, disp());
+    expect((out[0].data as { emphasizeMultiplicity?: boolean }).emphasizeMultiplicity).toBe(false);
   });
 });
 
@@ -140,7 +146,7 @@ describe("integration with @uaml/core's createModelStore", () => {
     const b = s.addNode({ x: 0, y: 0 });
     const e = s.addEdge(a.key, b.key)!;
     const { nodes: n, edges: ed } = s.get();
-    const rf = buildRfEdges(ed, n, "compact", "all", true);
+    const rf = buildRfEdges(ed, n, compact);
     expect(rf).toHaveLength(1);
     expect(rf[0]).toMatchObject({ id: e.id, source: a.key, target: b.key, type: "rel" });
     expect((rf[0].data as { modelEdgeId?: string }).modelEdgeId).toBe(e.id);

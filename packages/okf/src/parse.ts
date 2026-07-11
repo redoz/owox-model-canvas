@@ -1,4 +1,4 @@
-import type { ModelGraph, ModelNode, ModelEdge, Attribute, RelEnd, RelationshipKind, NoteAnchor, Diagram, DiagramHints } from "./types";
+import type { ModelGraph, ModelNode, ModelEdge, Attribute, RelEnd, RelationshipKind, NoteAnchor, Diagram, DiagramHints, DiagramDisplay } from "./types";
 import { endsFromCardinality } from "./migrate";
 import { parseFrontmatter } from "./slug";
 import { parseAttributeLine, parseValueLine, parseRelationshipLine } from "./grammar";
@@ -267,12 +267,19 @@ export function parseBundle(files: Record<string, string>): ModelGraph {
         if (n) n.position = { x: Number(at[2]), y: Number(at[3]) };
       }
     }
+    // Per-diagram render settings ride in the diagram frontmatter under `display`.
+    // Absent ⇒ omitted (resolves to DEFAULT_DISPLAY at render time); present ⇒
+    // carried through verbatim so it round-trips.
+    const display = data.display && typeof data.display === "object" && !Array.isArray(data.display)
+      ? (data.display as DiagramDisplay)
+      : undefined;
     diagrams.push({
       key,
       title: data.title || "Untitled diagram",
       profile: typeof data.profile === "string" && data.profile ? data.profile : "uml-domain",
       members,
       ...(hints.emphasize || hints.collapse ? { hints } : {}),
+      ...(display ? { display } : {}),
     });
   }
   return { nodes, edges, diagrams };

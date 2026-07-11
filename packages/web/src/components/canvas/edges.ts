@@ -1,7 +1,5 @@
 import { Position, type Edge } from "@xyflow/svelte";
-import type { ModelNode, ModelEdge } from "@uaml/okf";
-import type { ViewMode } from "@uaml/core/state/viewMode";
-import type { RelLabelMode } from "@uaml/core/state/relLabels";
+import type { ModelNode, ModelEdge, DiagramDisplay } from "@uaml/okf";
 import { erdAwareNodeSize } from "@uaml/core/canvas/layoutSize";
 import { oppositeSide, type Slot } from "./floating";
 
@@ -13,11 +11,12 @@ import { oppositeSide, type Slot } from "./floating";
 // sourceHandle/targetHandle is pinned; the hover connect-dots stay implicit.
 type EndPlacement = { sourceSide: Position; targetSide: Position; sourceSlot: Slot; targetSlot: Slot };
 
-function compactEdge(e: ModelEdge, place: EndPlacement | undefined, relLabelMode: RelLabelMode, emphasizeMultiplicity: boolean): Edge {
+function compactEdge(e: ModelEdge, place: EndPlacement | undefined, associationLabels: DiagramDisplay["associationLabels"], emphasizeMultiplicity: boolean): Edge {
   return {
     id: e.id, source: e.from, target: e.to,
     type: "rel",
-    data: { kind: e.kind, fromEnd: e.fromEnd, toEnd: e.toEnd, bidirectional: e.bidirectional, modelEdgeId: e.id, relLabelMode, emphasizeMultiplicity, ...place } as unknown as Record<string, unknown>,
+    // RelEdge reads `associationLabels` (show/hide) + `emphasizeMultiplicity`.
+    data: { kind: e.kind, fromEnd: e.fromEnd, toEnd: e.toEnd, bidirectional: e.bidirectional, modelEdgeId: e.id, associationLabels, emphasizeMultiplicity, ...place } as unknown as Record<string, unknown>,
   };
 }
 
@@ -31,9 +30,9 @@ export function isEdgeReconnectable(modelEdgeId: string | undefined, selectedEdg
 // by the OTHER end's position along that side's varying axis, so the fan spreads
 // without crossing itself. Uses the model geometry (positions + estimated size);
 // RelEdge then places the actual point on the live measured border.
-function planPlacements(edges: ModelEdge[], nodes: ModelNode[], viewMode: ViewMode): Map<string, EndPlacement> {
+function planPlacements(edges: ModelEdge[], nodes: ModelNode[], display: DiagramDisplay): Map<string, EndPlacement> {
   const byKey = new Map(nodes.map(n => [n.key, n]));
-  const center = (n: ModelNode) => { const s = erdAwareNodeSize(n, viewMode); return { x: n.position.x + s.width / 2, y: n.position.y + s.height / 2 }; };
+  const center = (n: ModelNode) => { const s = erdAwareNodeSize(n, display); return { x: n.position.x + s.width / 2, y: n.position.y + s.height / 2 }; };
   const isVertical = (side: Position) => side === Position.Left || side === Position.Right;
 
   // First pass: sides + the sort key (other end's coordinate along the side).
@@ -80,9 +79,12 @@ function planPlacements(edges: ModelEdge[], nodes: ModelNode[], viewMode: ViewMo
   return out;
 }
 
-export function buildRfEdges(edges: ModelEdge[], nodes: ModelNode[], viewMode: ViewMode, relLabelMode: RelLabelMode = "all", emphasizeMultiplicity = true): Edge[] {
-  const placements = planPlacements(edges, nodes, viewMode);
-  return edges.map(e => compactEdge(e, placements.get(e.id), relLabelMode, emphasizeMultiplicity));
+// Builds one 'rel' edge per model edge, threading the active diagram's resolved
+// display (association-label visibility + multiplicity emphasis) into edge data,
+// and sizing nodes for placement via the same display.
+export function buildRfEdges(edges: ModelEdge[], nodes: ModelNode[], display: DiagramDisplay): Edge[] {
+  const placements = planPlacements(edges, nodes, display);
+  return edges.map(e => compactEdge(e, placements.get(e.id), display.associationLabels, display.emphasizeMultiplicity));
 }
 
 // Synthesise the dashed connectors that tie annotation elements to what they

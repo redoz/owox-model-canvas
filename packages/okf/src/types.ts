@@ -76,6 +76,37 @@ export interface DiagramHints {
   collapse?: string[];
 }
 
+/** Per-diagram render settings — how the ACTIVE diagram draws its classifiers and
+ *  associations. Persisted on the diagram (in the model / OKF), NOT per-browser.
+ *  Absent ⇒ resolves to DEFAULT_DISPLAY (see resolveDisplay), so existing OKF
+ *  files without a `display` block stay valid and round-trip unchanged. */
+export interface DiagramDisplay {
+  /** Show attribute rows inside class boxes (vs. a collapsed attribute count). */
+  showAttributes: boolean;
+  /** How much of each attribute row shows: just the name, or name + type. */
+  attributeDetail: "name-only" | "name-type";
+  /** Whether association edges carry their multiplicity/role labels. */
+  associationLabels: "all" | "hidden";
+  /** Visually emphasize multiplicity on association labels. */
+  emphasizeMultiplicity: boolean;
+  /** Show the «stereotype» / keyword row on class boxes. */
+  showStereotype: boolean;
+}
+
+/** Defaults applied when a diagram has no `display` block (keeps legacy OKF valid). */
+export const DEFAULT_DISPLAY: DiagramDisplay = {
+  showAttributes: true,
+  attributeDetail: "name-type",
+  associationLabels: "all",
+  emphasizeMultiplicity: false,
+  showStereotype: true,
+};
+
+/** Resolve a diagram's (possibly absent/partial) display to a full DiagramDisplay. */
+export function resolveDisplay(display?: Partial<DiagramDisplay>): DiagramDisplay {
+  return { ...DEFAULT_DISPLAY, ...display };
+}
+
 /** A curated, profiled view over nodes — not a classifier. */
 export interface Diagram {
   key: string;
@@ -83,6 +114,8 @@ export interface Diagram {
   profile: string;
   members: string[];
   hints?: DiagramHints;
+  /** Per-diagram render settings; absent ⇒ DEFAULT_DISPLAY (resolveDisplay). */
+  display?: DiagramDisplay;
 }
 
 export interface ModelGraph {
