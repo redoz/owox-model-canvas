@@ -36,7 +36,7 @@ import { exportCanvasSvg } from "../../share/exportImage";
 
 import { TopBar } from "../TopBar";
 import { ImportDialog } from "../ImportDialog";
-import { mergeGraphs } from "../../sync/merge";
+import { mergeGraphs } from "@mc/core/sync/merge";
 import { LibraryDialog } from "../LibraryDialog";
 import { TemplateApplyDialog } from "../TemplateApplyDialog";
 import { WelcomeDialog } from "../WelcomeDialog";
