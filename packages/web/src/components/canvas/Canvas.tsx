@@ -50,6 +50,7 @@ import { AnchorEdge } from "./AnchorEdge";
 import { buildRfEdges, buildAnchorEdges, isEdgeReconnectable } from "./edges";
 import { erdAwareNodeSize } from "./layoutSize";
 import { Inspector } from "../inspector/Inspector";
+import { ExternalRefs } from "../inspector/ExternalRefs";
 import { getProfile } from "../../profiles";
 import { RightRail } from "../rail/RightRail";
 import { ModelSheet } from "../rail/ModelSheet";
@@ -583,6 +584,16 @@ function CanvasInner() {
               onUpdateEdge={store.updateEdge}
               onClose={() => { setSelection(null); panel.close(); }}
               profileName={activeDiagram.profile}
+              externalRefs={selection?.type === "node" ? (
+                <ExternalRefs
+                  nodeKey={selection.id}
+                  nodes={graph.nodes}
+                  edges={graph.edges}
+                  members={activeDiagram.members}
+                  diagrams={diagrams}
+                  onNavigate={(diagramKey, nodeKey) => { setActiveDiagramKey(diagramKey); setSelection({ type: "node", id: nodeKey }); }}
+                />
+              ) : undefined}
               embedded
             />
           )}

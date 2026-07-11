@@ -18,6 +18,8 @@ interface InspectorProps {
   onClose: () => void;
   /** Active diagram's profile name — drives the ObjectInspector palette. */
   profileName?: string;
+  /** Off-diagram relationship chips; rendered under ObjectInspector for a node selection only. */
+  externalRefs?: React.ReactNode;
   /**
    * When true, render ONLY the selection body (ObjectInspector / RelationshipInspector /
    * EmptyState) — no outer drawer wrapper, border, width, resize handle, header, or
@@ -68,7 +70,7 @@ function ReopenTab({ onClick }: { onClick: () => void }) {
 }
 
 export function Inspector({
-  selection, nodes, edges, onUpdateNode, onUpdateEdge, onClose, embedded = false, profileName,
+  selection, nodes, edges, onUpdateNode, onUpdateEdge, onClose, embedded = false, profileName, externalRefs,
 }: InspectorProps) {
   const [open, setOpen] = useState(true);
   const [width, setWidth] = useState(320);
@@ -126,11 +128,14 @@ export function Inspector({
   // Selection body — shared between the standalone drawer and the embedded
   // (Sheet-hosted) render so editing behaviour is identical in both.
   const body = selectedNode ? (
-    <ObjectInspector
-      node={selectedNode}
-      onUpdate={patch => onUpdateNode(selectedNode.key, patch)}
-      profileName={profileName}
-    />
+    <>
+      <ObjectInspector
+        node={selectedNode}
+        onUpdate={patch => onUpdateNode(selectedNode.key, patch)}
+        profileName={profileName}
+      />
+      {externalRefs}
+    </>
   ) : selectedEdge ? (
     <RelationshipInspector
       edge={selectedEdge}
