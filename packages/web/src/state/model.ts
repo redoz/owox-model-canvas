@@ -1,4 +1,4 @@
-import type { ModelGraph, ModelNode, ModelEdge } from "@mc/okf";
+import type { ModelGraph, ModelNode, ModelEdge, Diagram } from "@mc/okf";
 export function createModelStore(initial?: Partial<ModelGraph>) {
   let g: ModelGraph = { nodes: [], edges: [], diagrams: [], ...initial } as ModelGraph;
   // Per-store counter so independent stores (and HMR reloads) don't share ids.
@@ -19,9 +19,23 @@ export function createModelStore(initial?: Partial<ModelGraph>) {
       }
       emit();
     },
-    addNode(position: { x: number; y: number }): ModelNode {
+    addNode(position: { x: number; y: number }, diagramKey?: string): ModelNode {
       const n: ModelNode = { key: uid("n"), type: "uml.Class", title: "New object", stereotypes: [], attributes: [], position };
-      g = { ...g, nodes: [...g.nodes, n] }; emit(); return n;
+      g = { ...g,
+        nodes: [...g.nodes, n],
+        diagrams: diagramKey ? g.diagrams.map(d => d.key === diagramKey ? { ...d, members: [...d.members, n.key] } : d) : g.diagrams,
+      };
+      emit(); return n;
+    },
+    addDiagram(title: string): Diagram {
+      const d: Diagram = { key: uid("d"), title, profile: "uml-domain", members: g.nodes.map(n => n.key) };
+      g = { ...g, diagrams: [...g.diagrams, d] }; emit(); return d;
+    },
+    updateDiagram(key: string, patch: Partial<Diagram>) {
+      g = { ...g, diagrams: g.diagrams.map(d => d.key === key ? { ...d, ...patch } : d) }; emit();
+    },
+    removeDiagram(key: string) {
+      g = { ...g, diagrams: g.diagrams.filter(d => d.key !== key) }; emit();
     },
     updateNode(key: string, patch: Partial<ModelNode>) { g = { ...g, nodes: g.nodes.map(n => n.key === key ? { ...n, ...patch } : n) }; emit(); },
     removeNode(key: string) {

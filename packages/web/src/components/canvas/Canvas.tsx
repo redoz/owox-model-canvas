@@ -42,6 +42,8 @@ import { TemplateApplyDialog } from "../TemplateApplyDialog";
 import { WelcomeDialog } from "../WelcomeDialog";
 import { ClearCanvasDialog } from "../ClearCanvasDialog";
 import { Dock, type Tool } from "./Dock";
+import { DiagramTabs } from "./DiagramTabs";
+import { effectiveDiagrams, ALL_DIAGRAM_KEY, loadActiveDiagramKey, persistActiveDiagramKey } from "../../state/diagrams";
 import { OkfNode } from "./nodes/OkfNode";
 import { RelEdge } from "./RelEdge";
 import { AnchorEdge } from "./AnchorEdge";
@@ -96,8 +98,8 @@ if (sharedGraph) clearSharedModelFromUrl();
 const isFirstVisit = !templateInitial && !sharedGraph && persistedGraph === undefined;
 
 // ── helpers to convert between model and RF types ───────────────────────────
-function toRFNode(n: ModelNode, viewMode: ViewMode, profileName: string): Node {
-  return { id: n.key, type: "okf", position: n.position, data: { ...n, _viewMode: viewMode, _profile: profileName } as unknown as Record<string, unknown> };
+function toRFNode(n: ModelNode, viewMode: ViewMode, profileName: string, collapsed = false): Node {
+  return { id: n.key, type: "okf", position: n.position, data: { ...n, _viewMode: viewMode, _profile: profileName, _collapsed: collapsed } as unknown as Record<string, unknown> };
 }
 
 // ── Dagre auto-layout ────────────────────────────────────────────────────────
@@ -138,6 +140,15 @@ const edgeTypes = { rel: RelEdge, anchor: AnchorEdge };
 function CanvasInner() {
   const graph = useSyncExternalStore(store.subscribe, store.get);
   const { screenToFlowPosition, fitView } = useReactFlow();
+
+  // Diagrams as curated views. An empty diagrams array yields one implicit "All"
+  // diagram covering every node, so single-graph behaviour is unchanged.
+  const diagrams = effectiveDiagrams(graph);
+  const [activeDiagramKey, setActiveDiagramKey] = useState<string>(loadActiveDiagramKey() ?? diagrams[0].key);
+  const activeDiagram = diagrams.find(d => d.key === activeDiagramKey) ?? diagrams[0];
+  useEffect(() => { persistActiveDiagramKey(activeDiagram.key); }, [activeDiagram.key]);
+  const profile = getProfile(activeDiagram.profile);
+  const memberSet = new Set(activeDiagram.members);
   // True briefly during auto-layout so nodes glide (CSS transition) to their new
   // positions instead of snapping.
   const [layoutAnimating, setLayoutAnimating] = useState(false);
@@ -181,15 +192,19 @@ function CanvasInner() {
   const [rfEdges, setRfEdges, onRfEdgesChange] = useEdgesState<Edge>([]);
 
   useEffect(() => {
-    setRfNodes(graph.nodes.map(n => toRFNode(n, viewMode, "uml-domain")));
-  }, [graph.nodes, viewMode, setRfNodes]);
+    setRfNodes(graph.nodes.filter(n => memberSet.has(n.key))
+      .map(n => toRFNode(n, viewMode, activeDiagram.profile, activeDiagram.hints?.collapse?.includes(n.key) ?? false)));
+  }, [graph.nodes, graph.diagrams, viewMode, activeDiagram, setRfNodes]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const emphasizeMultiplicity = getProfile("uml-domain").emphasize.includes("multiplicity");
+    const visibleNodes = graph.nodes.filter(n => memberSet.has(n.key));
+    const visibleEdges = graph.edges.filter(e => memberSet.has(e.from) && memberSet.has(e.to));
+    const emphasizeMultiplicity = profile.emphasize.includes("multiplicity") &&
+      !(activeDiagram.hints?.emphasize && !activeDiagram.hints.emphasize.includes("multiplicity"));
     setRfEdges([
-      ...buildRfEdges(graph.edges, graph.nodes, viewMode, relLabelMode, emphasizeMultiplicity),
-      ...buildAnchorEdges(graph.nodes, graph.edges),
+      ...buildRfEdges(visibleEdges, graph.nodes, viewMode, relLabelMode, emphasizeMultiplicity),
+      ...buildAnchorEdges(visibleNodes, visibleEdges),
     ]);
-  }, [graph.edges, graph.nodes, viewMode, relLabelMode, setRfEdges]);
+  }, [graph.edges, graph.nodes, graph.diagrams, viewMode, relLabelMode, activeDiagram, setRfEdges]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mark only the selected relationship as reconnectable so dragging an endpoint
   // moves the line the user picked (not whichever overlapping edge RF would grab),
@@ -238,13 +253,13 @@ function CanvasInner() {
   const onPaneClick = useCallback((e: React.MouseEvent) => {
     if (tool === "add") {
       const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-      const n = store.addNode({ x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 });
+      const n = store.addNode({ x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 }, activeDiagram.key === ALL_DIAGRAM_KEY ? undefined : activeDiagram.key);
       setSelection({ type: "node", id: n.key });
       setTool("select");
       return;
     }
     setSelection(null);
-  }, [tool, screenToFlowPosition]);
+  }, [tool, screenToFlowPosition, activeDiagram.key]);
 
   // ── Node click → select ────────────────────────────────────────────────────
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
@@ -305,10 +320,10 @@ function CanvasInner() {
     if (target.closest(".react-flow__node") || target.closest(".react-flow__edge")) return;
     if (target.closest("[data-dock]")) return; // double-clicking the toolbar shouldn't drop a node
     const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-    const n = store.addNode({ x: position.x - NODE_W / 2, y: position.y - NODE_H / 2 });
+    const n = store.addNode({ x: position.x - NODE_W / 2, y: position.y - NODE_H / 2 }, activeDiagram.key === ALL_DIAGRAM_KEY ? undefined : activeDiagram.key);
     setSelection({ type: "node", id: n.key });
     setTool("select");
-  }, [screenToFlowPosition]);
+  }, [screenToFlowPosition, activeDiagram.key]);
 
   // ── Import / Export / Push handlers ───────────────────────────────────────
   const handleExport = useCallback(() => {
@@ -488,6 +503,12 @@ function CanvasInner() {
         >
           {/* Tool dock — anchored to the canvas (not the outer row) so it sits
               just inside the canvas edge and slides over as the rail opens. */}
+          <DiagramTabs
+            diagrams={diagrams}
+            activeKey={activeDiagram.key}
+            onSelect={setActiveDiagramKey}
+            onCreate={() => { const name = window.prompt("Diagram name?", "New diagram"); if (name) { const d = store.addDiagram(name); setActiveDiagramKey(d.key); } }}
+          />
           <Dock activeTool={tool} onToolChange={handleToolChange} viewMode={viewMode} onToggleView={handleToggleView} onClear={() => setShowClear(true)} clearDisabled={graph.nodes.length === 0} relLabelMode={relLabelMode} onRelLabelModeChange={handleRelLabelModeChange} />
           <ReactFlow
             nodes={rfNodes}
@@ -561,7 +582,7 @@ function CanvasInner() {
               onUpdateNode={store.updateNode}
               onUpdateEdge={store.updateEdge}
               onClose={() => { setSelection(null); panel.close(); }}
-              profileName="uml-domain"
+              profileName={activeDiagram.profile}
               embedded
             />
           )}
