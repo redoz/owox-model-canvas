@@ -30,9 +30,9 @@ import { loadModelName, persistModelName, DEFAULT_MODEL_NAME, templateModelName 
 import type { ModelNode, ModelEdge, ModelGraph } from "@mc/okf";
 
 import { graphToBundleFiles, downloadBundle } from "@mc/core/okf/io";
-import { buildShareUrl, readSharedModel, readSharedName, clearSharedModelFromUrl } from "../../share/url";
+import { buildShareUrl, readSharedModel, readSharedName, clearSharedModelFromUrl } from "@mc/core/share/url";
 import { readTemplateModel, clearTemplateFromUrl } from "../../lib/templateLink";
-import { exportCanvasSvg } from "../../share/exportImage";
+import { exportCanvasSvg } from "@mc/core/share/exportImage";
 
 import { TopBar } from "../TopBar";
 import { ImportDialog } from "../ImportDialog";
@@ -351,7 +351,7 @@ function CanvasInner() {
   // node list (measured sizes) to frame the export.
   const imageName = modelName.trim() || "model";
   const handleExportSvg = useCallback(() => {
-    exportCanvasSvg(rfNodes, imageName).catch(() => setShareToast("Couldn't export the image — please try again."));
+    exportCanvasSvg(rfNodes, imageName, ".react-flow__viewport").catch(() => setShareToast("Couldn't export the image — please try again."));
   }, [rfNodes, imageName]);
 
   // Copy a shareable link that reopens this exact model. Falls back to a prompt

@@ -1,17 +1,40 @@
 import { toSvg } from "html-to-image";
-import { getNodesBounds, type Node } from "@xyflow/react";
 
 // Export the whole model (not just the visible viewport) as an SVG, with a minimal
-// OWOX watermark in the bottom-right corner. Capturing the React Flow viewport
+// OWOX watermark in the bottom-right corner. Capturing the flow viewport
 // element with an overridden transform renders every node at 1:1 regardless of
 // the user's current pan/zoom.
 //
-// SVG (not PNG): React Flow renders nodes as HTML, so html-to-image wraps them in
-// an SVG <foreignObject>. Rasterizing that to PNG taints the canvas in Chromium
-// (a security rule) and toDataURL/toPng then hangs/throws. SVG sidesteps that and
-// is the better format for a diagram anyway — vector, crisp at any size.
+// SVG (not PNG): the flow renderer renders nodes as HTML, so html-to-image wraps
+// them in an SVG <foreignObject>. Rasterizing that to PNG taints the canvas in
+// Chromium (a security rule) and toDataURL/toPng then hangs/throws. SVG sidesteps
+// that and is the better format for a diagram anyway — vector, crisp at any size.
 
 const PAD = 60; // px of breathing room around the model
+
+export type BoundsNode = {
+  position: { x: number; y: number };
+  measured?: { width?: number | null; height?: number | null };
+  width?: number | null;
+  height?: number | null;
+};
+
+// Bounding box over the node array — framework-free replacement for
+// @xyflow/react's getNodesBounds. Nodes carry a measured size once rendered
+// (`measured`), falling back to any static width/height, else the layout default.
+const DEF_W = 200, DEF_H = 90; // matches runDagreLayout NODE_W/NODE_H
+function nodesBounds(nodes: BoundsNode[]): { x: number; y: number; width: number; height: number } {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const n of nodes) {
+    const w = n.measured?.width ?? n.width ?? DEF_W;
+    const h = n.measured?.height ?? n.height ?? DEF_H;
+    minX = Math.min(minX, n.position.x);
+    minY = Math.min(minY, n.position.y);
+    maxX = Math.max(maxX, n.position.x + w);
+    maxY = Math.max(maxY, n.position.y + h);
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
 
 // OWOX logo paths (512 viewBox), scaled down inside the watermark.
 const LOGO_P0 = "M421.311 119.85C435.258 133.807 440.996 157.327 440.996 157.327C440.996 157.327 449.53 204.69 449.53 268.995C449.53 177.972 418.65 162.348 311.314 162.348H212.327C157.38 162.348 161.097 217.57 157.38 243.85L152.865 283.556C150.697 325.33 157.951 351.215 200.811 351.215C111.444 351.215 61.806 365.847 61.8062 239.866C61.8061 182.846 70.4043 157.327 70.4043 157.327C70.4043 157.327 76.1419 133.807 90.1183 119.85C104.095 105.877 124.809 104.475 124.809 104.475C124.809 104.475 167.579 98.0374 252.066 98.0374C336.554 98.0374 384.285 104.475 384.285 104.475C384.285 104.475 407.321 105.877 421.311 119.85Z";
@@ -33,8 +56,8 @@ function watermarkGroup(x: number, y: number): string {
   );
 }
 
-function captureOptions(rfNodes: Node[]) {
-  const bounds = getNodesBounds(rfNodes);
+function captureOptions(rfNodes: BoundsNode[]) {
+  const bounds = nodesBounds(rfNodes);
   const width = Math.ceil(bounds.width) + PAD * 2;
   const height = Math.ceil(bounds.height) + PAD * 2;
   // Translate so the model's top-left lands at (PAD, PAD); no scaling (1:1).
@@ -43,8 +66,8 @@ function captureOptions(rfNodes: Node[]) {
 }
 
 /** Export the model as an SVG with the OWOX watermark embedded bottom-right. */
-export async function exportCanvasSvg(rfNodes: Node[], filename = "model"): Promise<void> {
-  const el = document.querySelector<HTMLElement>(".react-flow__viewport");
+export async function exportCanvasSvg(rfNodes: BoundsNode[], filename = "model", viewportSelector: string): Promise<void> {
+  const el = document.querySelector<HTMLElement>(viewportSelector);
   if (!el || rfNodes.length === 0) return;
   const { width, height, style } = captureOptions(rfNodes);
   // Don't pass `backgroundColor` here: we want a transparent background so the
