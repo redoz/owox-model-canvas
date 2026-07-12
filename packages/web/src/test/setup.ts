@@ -1,4 +1,4 @@
-import { initWasm } from "@uaml/okf";
+import { initWasm } from "@uaml/wasm";
 
 // The bundle-as-truth store derives its model via the WASM core synchronously, so
 // every test that imports the store singleton (directly or via `model.svelte` /

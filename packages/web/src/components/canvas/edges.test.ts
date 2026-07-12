@@ -1,6 +1,7 @@
 import { describe, it, test, expect, beforeAll } from "vitest";
 import type { ModelNode, ModelEdge } from "@uaml/okf";
-import { DEFAULT_DISPLAY, initWasm, type DiagramDisplay } from "@uaml/okf";
+import { initWasm } from "@uaml/wasm";
+import { DEFAULT_DISPLAY, type DiagramDisplay } from "@uaml/okf";
 import { createModelStore } from "@uaml/core/state/model";
 import { buildRfEdges, isEdgeReconnectable, buildAnchorEdges } from "./edges";
 

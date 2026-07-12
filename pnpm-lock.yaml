@@ -41,6 +41,9 @@ importers:
       '@uaml/okf':
         specifier: workspace:*
         version: link:../okf
+      '@uaml/wasm':
+        specifier: workspace:*
+        version: link:../wasm
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
@@ -103,6 +106,9 @@ importers:
       '@uaml/okf':
         specifier: workspace:*
         version: link:../okf
+      '@uaml/wasm':
+        specifier: workspace:*
+        version: link:../wasm
       '@xyflow/svelte':
         specifier: ^1.0.0
         version: 1.6.2(svelte@5.56.4(@typescript-eslint/types@8.63.0))
