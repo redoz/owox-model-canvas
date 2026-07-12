@@ -32,6 +32,11 @@ export type NoteAnchor =
   | { sourceKey: string; kind: RelationshipKind; targetKey: string };
 
 export interface ModelNode {
+  /** Lossless OKF projection of this node's source document (OKF tier). Nested
+   *  additively beneath the flat UML fields: every flat field mirrors a
+   *  `concept.*` slot, but `concept` also carries the non-UML OKF fields
+   *  (tags/resource/timestamp/links/citations/role/extra) the flat projection drops. */
+  concept: Concept;
   key: string;
   /** Structured dispatch key "family.Metaclass" (e.g. "uml.Class") or an opaque legacy token. */
   type: string;
