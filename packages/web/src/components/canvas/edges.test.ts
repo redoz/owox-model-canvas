@@ -10,7 +10,7 @@ beforeAll(async () => {
 });
 
 const node = (key: string, x = 0): ModelNode =>
-  ({ concept: { id: key, type: "uml.Class", body: "" }, key, title: key, type: "uml.Class", stereotypes: [], attributes: [], position: { x, y: 0 } });
+  ({ concept: { id: key, type: "uml.Class", title: key, body: "" }, key, type: "uml.Class", stereotypes: [], attributes: [], position: { x, y: 0 } });
 const edge = (over: Partial<ModelEdge> = {}): ModelEdge =>
   ({ id: "e1", kind: "associates", from: "a", to: "b", fromEnd: {}, toEnd: { navigable: true }, bidirectional: false, ...over });
 

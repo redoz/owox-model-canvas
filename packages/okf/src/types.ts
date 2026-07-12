@@ -32,25 +32,21 @@ export type NoteAnchor =
   | { sourceKey: string; kind: RelationshipKind; targetKey: string };
 
 export interface ModelNode {
-  /** Lossless OKF projection of this node's source document (OKF tier). Nested
-   *  additively beneath the flat UML fields: every flat field mirrors a
-   *  `concept.*` slot, but `concept` also carries the non-UML OKF fields
-   *  (tags/resource/timestamp/links/citations/role/extra) the flat projection drops. */
+  /** Lossless OKF projection of this node's source document (OKF tier) and the
+   *  single authoritative source for title/description/verbatim body (read via
+   *  `concept.title` / `concept.description` / `concept.body`) plus the non-UML
+   *  OKF fields (tags/resource/timestamp/links/citations/role/extra). */
   concept: Concept;
   key: string;
   /** Structured dispatch key "family.Metaclass" (e.g. "uml.Class") or an opaque legacy token. */
   type: string;
-  title: string;
   stereotypes: string[];
   abstract?: boolean;
-  description?: string;
   attributes: Attribute[];
   /** uml.Enum literals. */
   values?: string[];
-  /** uml.Note markdown body (from ## Body). */
-  body?: string;
-  /** uml.Note markdown prose (from ## Body), byte-identical to `body` during the
-   *  flat→concept migration. Sole reader is the note node renderer. */
+  /** uml.Note markdown prose (from ## Body). Distinct from the generic verbatim
+   *  `concept.body`; sole reader is the note node renderer. */
   note_body?: string;
   /** uml.Note anchor targets; the ## Notes shorthand desugars into a self-anchored note. */
   annotates?: NoteAnchor[];
