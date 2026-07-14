@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: owox-model-canvas
+    name: okf-canvas
     # Purely static SPA — no backend. Render serves the built web dist/ directly.
     runtime: static
     # corepack provides pnpm (version pinned via package.json "packageManager")
