@@ -1,7 +1,14 @@
 import { Position, type Edge } from "@xyflow/svelte";
-import type { ModelNode, ModelEdge, DiagramDisplay } from "@waml/okf";
+import type { ModelNode, ModelEdge, DiagramDisplay, RelationshipKind } from "@waml/okf";
 import { erdAwareNodeSize } from "@waml/core/canvas/layoutSize";
 import { oppositeSide, type Slot } from "./floating";
+
+// Verb → midpoint guillemet label. Category fixes line (dashed dependency),
+// verb fixes adornment — includes/extends add «keyword» label. Closed,
+// exhaustive set: every other relationship kind returns undefined (no label).
+export function edgeStereotype(kind: RelationshipKind): string | undefined {
+  return kind === "includes" ? "«include»" : kind === "extends" ? "«extend»" : undefined;
+}
 
 // The rendered edge attaches nowhere fixed: RelEdge computes a floating attach
 // point on each node's border facing its neighbour (see floating.ts). Here we

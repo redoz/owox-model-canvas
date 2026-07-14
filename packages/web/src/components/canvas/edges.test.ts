@@ -3,7 +3,7 @@ import type { ModelNode, ModelEdge } from "@waml/okf";
 import { initWasm } from "@waml/wasm";
 import { DEFAULT_DISPLAY, type DiagramDisplay } from "@waml/okf";
 import { createModelStore } from "@waml/core/state/model";
-import { buildRfEdges, isEdgeReconnectable, buildAnchorEdges } from "./edges";
+import { buildRfEdges, isEdgeReconnectable, buildAnchorEdges, edgeStereotype } from "./edges";
 
 beforeAll(async () => {
   await initWasm();
@@ -124,6 +124,13 @@ describe("buildAnchorEdges (dashed connectors for association classes + notes)",
     const notes: ModelNode[] = [{ ...node("n"), type: "uml.Note", annotates: [{ targetKey: "gone" }] }];
     expect(buildAnchorEdges(notes, [])).toEqual([]);
   });
+});
+
+it("maps use-case dependency verbs guillemet stereotypes", () => {
+  expect(edgeStereotype("includes")).toBe("«include»");
+  expect(edgeStereotype("extends")).toBe("«extend»");
+  expect(edgeStereotype("associates")).toBeUndefined();
+  expect(edgeStereotype("depends")).toBeUndefined();
 });
 
 describe("isEdgeReconnectable (only the selected relationship reconnects)", () => {
