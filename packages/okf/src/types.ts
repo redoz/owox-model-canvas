@@ -25,6 +25,8 @@ export type {
   ConceptRole,
   Link,
   Citation,
+  Concept,
+  Bundle,
 } from "@waml/wasm";
 
 import type {
@@ -34,10 +36,7 @@ import type {
   NoteAnchor,
   FlowDoc,
   SequenceDoc,
-  FmValue,
-  ConceptRole,
-  Link,
-  Citation,
+  Concept,
 } from "@waml/wasm";
 
 // "annotates" is a uml.Note-only verb; it never produces a ModelEdge (anchors live on the note node).
@@ -180,37 +179,3 @@ export function splitType(type: string): { family: string; metaclass: string } |
   return m ? { family: m[1], metaclass: m[2] } : null;
 }
 
-// ── OKF tier (domain-agnostic substrate beneath the UML profile) ─────────────
-// The lossless projection of a bundle: one `Concept` per markdown document,
-// carrying every OKF field verbatim. Additive to the UML `Model*` types above —
-// mirrors the Rust `okf::` shapes (see crates/waml/src/okf.rs) that
-// `build_bundle` returns over the wasm wire. These do NOT replace `ModelNode` /
-// `ModelGraph`; both surfaces coexist.
-
-/** The domain-agnostic projection of one markdown document. Round-trips every
- *  OKF field losslessly. Fields that are empty/default are omitted on the wire
- *  (serde `skip_serializing_if`), hence optional here. */
-export interface Concept {
-  /** Concept ID = full path minus the `.md` suffix (OKF §2). */
-  id: string;
-  /** The free-text `type` frontmatter field (NOT the UML classifier token). */
-  type: string;
-  title?: string;
-  description?: string;
-  resource?: string;
-  tags?: string[];
-  timestamp?: string;
-  /** The full markdown body (everything after the frontmatter), verbatim. */
-  body: string;
-  links?: Link[];
-  citations?: Citation[];
-  /** Absent ⇒ `"concept"`. */
-  role?: ConceptRole;
-  /** Producer-specific frontmatter keys with no dedicated field above. */
-  extra?: Record<string, FmValue>;
-}
-
-/** One `Concept` per document; a Bundle stays flat. */
-export interface Bundle {
-  concepts: Concept[];
-}
