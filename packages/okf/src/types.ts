@@ -92,21 +92,36 @@ export interface DiagramDisplay {
   showAttributes: boolean;
   /** How much of each attribute row shows: just the name, or name + type. */
   attributeDetail: "name-only" | "name-type";
+  /** Diagram-level gate on the +/-/#/~ visibility marker per attribute row. */
+  showAttributeVisibility: boolean;
+  /** Independent gate on the {mult} suffix per attribute row. */
+  showAttributeMultiplicity: boolean;
+  /** Cap on attribute rows drawn per box; excess folded as "+K more". Absent ⇒ unlimited. */
+  maxAttributes?: number;
   /** Whether association edges carry their multiplicity/role labels. */
   associationLabels: "all" | "hidden";
   /** Visually emphasize multiplicity on association labels. */
   emphasizeMultiplicity: boolean;
   /** Show the «stereotype» / keyword row on class boxes. */
   showStereotype: boolean;
+  /** Allowlist of stereotype tag names to render. Absent ⇒ show all; [] ⇒ show none. */
+  stereotypeFilter?: string[];
+  /** Per-stereotype-name color override. */
+  stereotypeColors: Record<string, string>;
 }
 
 /** Defaults applied when a diagram has no `display` block (keeps legacy OKF valid). */
 export const DEFAULT_DISPLAY: DiagramDisplay = {
   showAttributes: true,
   attributeDetail: "name-type",
+  showAttributeVisibility: true,
+  showAttributeMultiplicity: true,
+  // maxAttributes omitted ⇒ undefined ⇒ unlimited
   associationLabels: "all",
   emphasizeMultiplicity: false,
   showStereotype: true,
+  // stereotypeFilter omitted ⇒ undefined ⇒ show all
+  stereotypeColors: {},
 };
 
 /** Resolve a diagram's (possibly absent/partial) display to a full DiagramDisplay. */
@@ -121,8 +136,10 @@ export interface Diagram {
   profile: string;
   members: string[];
   hints?: DiagramHints;
-  /** Per-diagram render settings; absent ⇒ DEFAULT_DISPLAY (resolveDisplay). */
-  display?: DiagramDisplay;
+  /** Free-text reviewer note. */
+  description?: string;
+  /** The raw STORED partial (only authored keys); always fed through resolveDisplay before use. */
+  display?: Partial<DiagramDisplay>;
 }
 
 export interface ModelGraph {
