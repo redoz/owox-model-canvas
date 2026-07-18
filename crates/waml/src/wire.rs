@@ -152,7 +152,7 @@ pub fn build_wire(model: &Model) -> WireGraph {
         packages: model
             .packages
             .iter()
-            .map(|n| wire_node(n, &model.concepts))
+            .map(|n| wire_node(n, &model.package_concepts))
             .collect(),
         flows: model.flows.clone(),
         interactions: model.interactions.clone(),
@@ -160,14 +160,16 @@ pub fn build_wire(model: &Model) -> WireGraph {
 }
 
 /// Project a substrate `Node` (Concept off-node, spec §2) into the flat wire
-/// shape: the concept is re-joined from `Model.concepts`, and every UML field
+/// shape: the concept is re-joined from the caller's concept map (classifier
+/// nodes from `Model.concepts`, packages from `Model.package_concepts` — kept
+/// separate so a file+dir key collision cannot swap them), and every UML field
 /// is read via `Node` accessors rather than a raw field/variant match.
 fn wire_node(n: &Node, concepts: &HashMap<String, Concept>) -> WireNode {
     WireNode {
         concept: concepts
             .get(&n.key)
             .cloned()
-            .expect("every wire node has a Concept in Model.concepts (build_model invariant)"),
+            .expect("every wire node has a Concept in its concept map (build_model invariant)"),
         key: n.key.clone(),
         ty: n.ty(),
         stereotypes: n.stereotypes().to_vec(),

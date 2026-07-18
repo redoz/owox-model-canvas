@@ -989,17 +989,30 @@ pub struct Model {
         serde(default, skip_serializing_if = "Vec::is_empty")
     )]
     pub interactions: Vec<SequenceDoc>,
-    /// Parse-time OKF projection of each node's source document (design spec §2:
-    /// Concept is a projection of storage, off the object-model `Node`). Keyed by
-    /// `node.key` (packages key by their dir; the `Concept.id` inside keeps its
-    /// natural path). `build_wire` re-joins it onto the wire; native readers use
-    /// `Model::concept`. Not part of the wire — the wire re-flattens it.
+    /// Parse-time OKF projection of each classifier node's source document
+    /// (design spec §2: Concept is a projection of storage, off the object-model
+    /// `Node`). Keyed by `node.key`. Kept SEPARATE from `package_concepts`: a
+    /// classifier doc (`sales.md`) and a package dir (`sales/`) can share a key,
+    /// so a single map would silently swap one concept for the other. `build_wire`
+    /// re-joins it onto the wire; native readers use `Model::concept`. Not part of
+    /// the wire — the wire re-flattens it.
     #[cfg_attr(
         feature = "serde",
         serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")
     )]
     #[cfg_attr(feature = "wasm", tsify(type = "Record<string, Concept>"))]
     pub concepts: std::collections::HashMap<String, crate::okf::Concept>,
+    /// Parse-time OKF projection of each package's `index.md`, keyed by the
+    /// package `node.key` (its dir). Separate namespace from `concepts` so a
+    /// file+dir key collision (`sales.md` vs `sales/`) never swaps concepts.
+    /// `build_wire` re-joins it onto package wire nodes; native readers use
+    /// `Model::package_concept`.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")
+    )]
+    #[cfg_attr(feature = "wasm", tsify(type = "Record<string, Concept>"))]
+    pub package_concepts: std::collections::HashMap<String, crate::okf::Concept>,
 }
 
 impl Model {
@@ -1007,8 +1020,15 @@ impl Model {
         self.nodes.iter().find(|n| n.key == key)
     }
 
+    /// Concept for a classifier node (`nodes`/`diagrams` key namespace).
     pub fn concept(&self, key: &str) -> Option<&crate::okf::Concept> {
         self.concepts.get(key)
+    }
+
+    /// Concept for a package node (`packages` key namespace). Distinct from
+    /// [`Model::concept`] so a file+dir key collision cannot swap the two.
+    pub fn package_concept(&self, key: &str) -> Option<&crate::okf::Concept> {
+        self.package_concepts.get(key)
     }
 }
 

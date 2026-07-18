@@ -46,6 +46,56 @@ fn node_reshape_keeps_wire_flat_and_accessors_work() {
 }
 
 #[test]
+fn colliding_classifier_and_package_keys_keep_distinct_concepts() {
+    // A classifier doc (`sales.md`) and a package dir (`sales/`) both key "sales".
+    // The wire must re-join the CLASSIFIER concept onto the classifier node and
+    // the PACKAGE concept onto the package node -- no silent concept-swap.
+    let m = build_model(&[
+        (
+            "sales.md".to_string(),
+            "---\ntype: uml.Class\ntitle: Sales Classifier\n---\n# Sales Classifier\n".to_string(),
+        ),
+        (
+            "sales/index.md".to_string(),
+            "# Sales\n\nSales package intro.\n".to_string(),
+        ),
+        (
+            "sales/order.md".to_string(),
+            "---\ntype: uml.Class\ntitle: Order\n---\n# Order\n".to_string(),
+        ),
+    ]);
+    // Native accessors: node vs package concepts stay separate.
+    assert_eq!(
+        m.concept("sales").and_then(|c| c.title.as_deref()),
+        Some("Sales Classifier"),
+        "classifier node concept must survive the package with the same key"
+    );
+    assert_eq!(
+        m.package_concept("sales")
+            .and_then(|c| c.description.as_deref()),
+        Some("Sales package intro."),
+        "package concept must be reachable under its own key"
+    );
+    // Wire: the classifier node carries the classifier concept, the package node
+    // carries the package concept.
+    let v = serde_json::to_value(waml::wire::build_wire(&m)).unwrap();
+    let cn = v["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["key"] == "sales")
+        .expect("classifier node with key `sales`");
+    assert_eq!(cn["concept"]["title"], "Sales Classifier");
+    let pn = v["packages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["key"] == "sales")
+        .expect("package node with key `sales`");
+    assert_eq!(pn["concept"]["description"], "Sales package intro.");
+}
+
+#[test]
 fn edge_reshape_keeps_wire_flat_and_accessors_work() {
     use waml::model::RelationshipKind;
     let m = build_model(&bundle()); // order composes line (see bundle())

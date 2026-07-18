@@ -118,7 +118,7 @@ pub fn reindex_bundle(bundle: &[(String, String)]) -> Vec<(String, String)> {
             Some(pkg.label.as_str())
         };
         let description = model
-            .concept(&pkg.key)
+            .package_concept(&pkg.key)
             .and_then(|c| c.description.as_deref());
         out.push((path, render_index(&pkg.key, title, description, &entries)));
     }

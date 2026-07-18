@@ -811,6 +811,10 @@ pub fn build_model(bundle: &[(String, String)]) -> Model {
     let flows = build_flows(&parsed, &keyset);
     let interactions = build_interactions(&parsed, &keyset);
 
+    // Classifier and package concepts live in SEPARATE maps: their keys can
+    // collide (`sales.md` doc vs `sales/` dir both key "sales"), so a single map
+    // would let the package silently overwrite the classifier's concept (or vice
+    // versa) and re-join the wrong Concept onto the wire.
     let mut concepts: std::collections::HashMap<String, crate::okf::Concept> =
         std::collections::HashMap::new();
     let mut nodes = Vec::with_capacity(node_pairs.len());
@@ -818,9 +822,11 @@ pub fn build_model(bundle: &[(String, String)]) -> Model {
         concepts.insert(n.key.clone(), c);
         nodes.push(n);
     }
+    let mut package_concepts: std::collections::HashMap<String, crate::okf::Concept> =
+        std::collections::HashMap::new();
     let mut packages = Vec::with_capacity(package_pairs.len());
     for (n, c) in package_pairs {
-        concepts.insert(n.key.clone(), c);
+        package_concepts.insert(n.key.clone(), c);
         packages.push(n);
     }
 
@@ -833,6 +839,7 @@ pub fn build_model(bundle: &[(String, String)]) -> Model {
         flows,
         interactions,
         concepts,
+        package_concepts,
     }
 }
 
@@ -1366,7 +1373,8 @@ mod tests {
         assert!(m.nodes.iter().all(|n| n.key != "index"));
         let sales = m.packages.iter().find(|p| p.key == "sales").unwrap();
         assert_eq!(
-            m.concept("sales").and_then(|c| c.description.as_deref()),
+            m.package_concept("sales")
+                .and_then(|c| c.description.as_deref()),
             Some("Sales bounded context.")
         );
         // listed order first (customer, order), then unlisted appended (invoice)

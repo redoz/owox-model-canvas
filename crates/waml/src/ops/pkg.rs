@@ -221,7 +221,9 @@ fn write_package_index(
         Some(pkg.label.clone())
     };
     let title_for_index = title_override.map(str::to_string).or(current_title);
-    let description = model.concept(path).and_then(|c| c.description.as_deref());
+    let description = model
+        .package_concept(path)
+        .and_then(|c| c.description.as_deref());
     let text = render_index(path, title_for_index.as_deref(), description, &entries);
     // Root special-case is ONLY the index-file path arithmetic.
     let idx_path = if path.is_empty() {
