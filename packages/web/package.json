@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@dagrejs/dagre": "^1.1.0",
-    "@fontsource-variable/source-sans-3": "^5.2.9",
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/ibm-plex-sans": "^5.2.8",
     "@waml/core": "workspace:*",
     "@waml/okf": "workspace:*",
     "@waml/wasm": "workspace:*",
