@@ -13,6 +13,7 @@ mod draw_hud;
 mod inspector;
 mod inspector_panel;
 mod load;
+mod logo;
 mod node_style;
 mod scene;
 mod selection_toolbar;
